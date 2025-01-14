@@ -1,0 +1,9 @@
+aws_region             = "us-east-2"
+key_name               = "dvsdpa-keypair"
+availability_zone_gw_a = "us-east-2a"
+availability_zone_gw_b = "us-east-2b"
+vpc_id                 = "vpc-03e767a413b5c8d7f"
+vpc_security_group_ids = []
+iam_instance_profile   = "SSM"
+client_name            = "dvsdpa"
+state                  = "PA"

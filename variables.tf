@@ -16,20 +16,20 @@ variable "availability_zone_gw_b" {
   description = "The availability zone to launch the instance in"
   type        = string
 }
-
-variable "vpc_id" {
-  description = "The ID of the vpc to launch the instance in"
+variable "gw_a_subnet" {
+  description = "The ID of the subnet to launch the instance in"
   type        = string
+  default     = ""
 }
-
-variable "vpc_security_group_ids" {
-  description = "The IDs of the security groups to associate with the instance"
-  type        = list(string)
+variable "gw_b_subnet" {
+  description = "The ID of the subnet to launch the instance in"
+  type        = string
+  default     = ""
 }
-
 variable "iam_instance_profile" {
   description = "The name of the IAM instance profile to associate with the instance"
   type        = string
+  default     = "EC2_servers"
 }
 
 variable "client_name" {

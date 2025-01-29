@@ -1,3 +1,7 @@
+variable "client_name"{
+  type        = string
+  description = "The client name to use for the instance tag"
+}
 variable "instance_type" {
   type        = string
   description = "The type of EC2 instance to launch"
@@ -12,16 +16,6 @@ variable "key_name" {
 variable "availability_zone" {
   type        = string
   description = "The availability zone to launch the instance in"
-}
-
-variable "vpc_id" {
-  type        = string
-  description = "The ID of the vpc to launch the instance in"
-}
-
-variable "vpc_security_group_ids" {
-  type        = list(string)
-  description = "The IDs of the security groups to associate with the instance"
 }
 
 variable "iam_instance_profile" {
@@ -52,4 +46,16 @@ variable "tag_role" {
 variable "tag_state" {
   type        = string
   description = "The state to use for the instance tag"
+}
+
+# Optional variables (conditional)
+variable "gw_a_subnet" {
+  description = "The ID of the subnet to launch the instance in"
+  type        = string
+  default = ""
+}
+variable "gw_b_subnet" {
+  description = "The ID of the subnet to launch the instance in"
+  type        = string
+  default = ""
 }

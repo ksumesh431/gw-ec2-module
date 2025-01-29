@@ -11,7 +11,7 @@ terraform {
   # terraform init -backend-config="bucket=${TF_VAR_s3_bucket_name}"
   backend "s3" {
     key    = "dynamic-terraform.tfstate"
-    region = "us-east-1"
+    region = "us-east-2"
     # dynamodb_table = "terraform-state-lock"
   }
 }

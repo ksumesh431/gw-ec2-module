@@ -1,5 +1,10 @@
+# The vpc and subnets data block is only used if subnet ids are not defined
+
 data "aws_vpc" "selected" {
-  id = var.vpc_id
+  filter {
+    name   = "tag:Name"
+    values = [var.client_name]
+  }
 }
 
 # Fetch subnets in the specified VPC and Availability Zone

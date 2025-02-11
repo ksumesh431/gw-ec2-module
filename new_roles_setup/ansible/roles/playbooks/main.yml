@@ -1,0 +1,10 @@
+- name: Sample Playbook
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Ensure latest version of Apache is installed
+    - name: Print hostname
+      debug:
+        msg: "{{ ansible_hostname }}"
+

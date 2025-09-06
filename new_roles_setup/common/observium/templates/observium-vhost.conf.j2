@@ -1,0 +1,9 @@
+<VirtualHost *:80>
+    DocumentRoot /opt/observium/html/
+    ServerName {{ server_name }}
+
+    <Directory "/opt/observium/html/">
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>

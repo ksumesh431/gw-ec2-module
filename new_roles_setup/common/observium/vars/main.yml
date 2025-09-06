@@ -1,0 +1,52 @@
+---
+# Database configurations
+db_root_password: "prologic"
+db_name: "observium"
+db_user: "proot"
+db_password: "prologic"
+
+# Observium admin credentials
+admin_user: "admin"
+admin_password: "prologic"
+
+# Server configuration
+server_name: "webmaster@localhost"
+
+# Observium SVN credentials
+observium_svn_username: "JasonHickey-790143"
+observium_svn_password: "bigkon39"
+observium_svn_url: "http://svn.observium.org/svn/observium/branches/stable"
+
+# Required packages
+required_packages:
+  - httpd
+  - mariadb105-server
+  - mariadb105
+  - php
+  - php-cli
+  - php-mysqlnd
+  - php-gd
+  - php-snmp
+  - php-mbstring
+  - php-xml
+  - php-posix
+  - net-snmp
+  - net-snmp-utils
+  - rrdtool
+  - unzip
+  - wget
+  - git
+  - cronie
+  - python3-pip
+  - python3-devel
+  - mariadb105-devel
+  - gcc
+  - subversion
+  - python3
+
+# Services to enable and start
+services:
+  - httpd
+  - mariadb
+  - snmpd
+  - crond

@@ -30,12 +30,12 @@ data "aws_security_group" "edge_sg" {
   }
 }
 
-data "aws_instance" "old_gw_b_server" {
-  filter {
-    name   = "tag:Name"
-    values = ["${var.client_name}-gw-b"]
-  }
-}
+# data "aws_instance" "old_gw_b_server" {
+#   filter {
+#     name   = "tag:Name"
+#     values = ["${var.client_name}-gw-b"]
+#   }
+# }
 
 locals {
   defined_subnet_id = var.tag_logical_name == "GatewayAServer" ? var.gw_a_subnet : var.gw_b_subnet
@@ -51,15 +51,15 @@ resource "aws_instance" "ec2" {
   ebs_optimized          = false
   vpc_security_group_ids = [data.aws_security_group.edge_sg.id]
   source_dest_check      = true
-  user_data = templatefile("${path.module}/files/user_data.tpl", {
-    ansible_playbook = templatefile(
-      "${path.module}/files/ansible/${var.tag_logical_name == "GatewayAServer" ? "ansible_playbook_gw_a.tpl" : "ansible_playbook_gw_b.tpl"}",
-      {
-        client_name = var.client_name
-        old_gw_b_server_ip = data.aws_instance.old_gw_b_server.private_ip
-      }
-    )
-  })
+  # user_data = templatefile("${path.module}/files/user_data.tpl", {
+  #   ansible_playbook = templatefile(
+  #     "${path.module}/files/ansible/${var.tag_logical_name == "GatewayAServer" ? "ansible_playbook_gw_a.tpl" : "ansible_playbook_gw_b.tpl"}",
+  #     {
+  #       client_name = var.client_name
+  #       old_gw_b_server_ip = data.aws_instance.old_gw_b_server.private_ip
+  #     }
+  #   )
+  # })
   root_block_device {
     volume_size           = 30
     volume_type           = "gp3"

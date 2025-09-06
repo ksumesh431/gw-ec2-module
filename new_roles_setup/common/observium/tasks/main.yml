@@ -1,0 +1,151 @@
+---
+- name: Update system packages
+  yum:
+    name: "*"
+    state: latest
+    update_only: yes
+
+- name: Install required packages
+  yum:
+    name: "{{ required_packages }}"
+    state: present
+
+- name: Install PyMySQL system-wide using pip
+  command: /usr/bin/pip3 install PyMySQL
+  args:
+    creates: /usr/local/lib/python3*/site-packages/pymysql
+  register: pip_result
+  changed_when: "'Successfully installed' in pip_result.stdout"
+
+- name: Create symlink from python to python3
+  file:
+    src: /usr/bin/python3
+    dest: /usr/bin/python
+    state: link
+    force: yes
+
+- name: Start and enable required services
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop: "{{ services }}"
+
+- name: Wait for MariaDB to start
+  wait_for:
+    port: 3306
+    delay: 10
+
+- name: Set MariaDB root password and authentication plugin
+  shell: |
+    mysql -u root <<EOF
+    UPDATE mysql.global_priv
+    SET Priv = JSON_SET(Priv, '$.plugin', 'mysql_native_password', '$.authentication_string', PASSWORD('{{ db_root_password }}'))
+    WHERE User = 'root' AND Host = 'localhost';
+    FLUSH PRIVILEGES;
+    EOF
+  args:
+    executable: /bin/bash
+
+- name: Create Observium database
+  mysql_db:
+    login_user: root
+    login_password: "{{ db_root_password }}"
+    name: "{{ db_name }}"
+    state: present
+
+- name: Create Observium database user
+  community.mysql.mysql_user:
+    login_user: root
+    login_password: "{{ db_root_password }}"
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    priv: "{{ db_name }}.*:ALL"
+    host: localhost
+    state: present
+    column_case_sensitive: false
+
+- name: Check if /opt/observium is a valid SVN repository
+  command: svn info /opt/observium
+  register: svn_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Remove existing Observium directory if not a valid SVN repository
+  file:
+    path: /opt/observium
+    state: absent
+  when: svn_check.rc != 0
+
+- name: Checkout Observium Professional from SVN using command
+  command: >
+    svn co --username {{ observium_svn_username }} --password {{ observium_svn_password }}
+    {{ observium_svn_url }} /opt/observium
+  when: svn_check.rc != 0
+
+- name: Copy Observium config file if it doesn't exist
+  copy:
+    src: /opt/observium/config.php.default
+    dest: /opt/observium/config.php
+    remote_src: yes
+    force: no
+
+- name: Configure Observium database settings
+  replace:
+    path: /opt/observium/config.php
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  loop:
+    - { regexp: "'USERNAME'", replace: "'{{ db_user }}'" }
+    - { regexp: "'PASSWORD'", replace: "'{{ db_password }}'" }
+
+- name: Initialize Observium database
+  command: php /opt/observium/discovery.php -u
+
+- name: Configure Apache virtual host
+  template:
+    src: observium-vhost.conf.j2
+    dest: /etc/httpd/conf.d/observium.conf
+  notify: restart apache
+
+- name: Create admin user
+  command: php /opt/observium/adduser.php {{ admin_user }} {{ admin_password }} 10
+  args:
+    creates: /opt/observium/users.json
+
+- name: Update poller-wrapper.py shebang to use python3
+  lineinfile:
+    path: /opt/observium/poller-wrapper.py
+    regexp: '^#!/usr/bin/env python$'
+    line: '#!/usr/bin/env python3'
+    state: present
+
+- name: Configure Observium cron jobs
+  template:
+    src: observium-cron.j2
+    dest: /etc/cron.d/observium
+  notify: restart crond
+
+- name: Create required directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: apache
+    group: apache
+    mode: "0775"
+  loop:
+    - /opt/observium/rrd
+    - /opt/observium/logs
+
+- name: Set proper permissions for Observium
+  file:
+    path: /opt/observium
+    owner: apache
+    group: apache
+    recurse: yes
+    state: directory
+
+- name: Restart Apache
+  systemd:
+    name: httpd
+    state: restarted

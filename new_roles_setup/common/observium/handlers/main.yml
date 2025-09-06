@@ -1,0 +1,10 @@
+---
+- name: restart apache
+  systemd:
+    name: httpd
+    state: restarted
+
+- name: restart crond
+  systemd:
+    name: crond
+    state: restarted

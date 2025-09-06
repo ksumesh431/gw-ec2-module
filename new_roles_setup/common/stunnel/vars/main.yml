@@ -1,0 +1,10 @@
+---
+# Default variables for stunnel role
+crowdstrike_rpm: "falcon-sensor-7.18.0-17106.amzn2023.x86_64.rpm"
+s3_bucket: "ferp-build"
+s3_path: "crowdstrike"
+proot_user: "proot"
+ssm_parameter_name: "proot-user"
+client_name: "whcopa"  # Default client name
+stunnel_cert_param: "/{{ client_name }}/pd/stunnel/cert"
+stunnel_conf_param: "/{{ client_name }}/pd/stunnel/conf"

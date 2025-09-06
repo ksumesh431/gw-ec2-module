@@ -1,0 +1,13 @@
+---
+- name: Configure all services for gw-a
+  hosts: all
+  become: true
+  vars:
+    ansible_python_interpreter: auto
+    # Override variables if needed
+    client_name: "whcopa" # Can be overridden for specific client (Used for fetching stunnel certificate and configuration)
+
+  tasks:
+    - name: Include stunnel role
+      ansible.builtin.include_role:
+        name: ../../../../common/stunnel

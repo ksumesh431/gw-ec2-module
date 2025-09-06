@@ -1,0 +1,78 @@
+---
+- name: AWS and System Setup
+  block:
+    - name: Install AWS boto3 Python SDK for AWS interactions
+      ansible.builtin.pip:
+        name: boto3
+        state: present
+        version: 1.36.7
+
+    - name: Verify installed boto3 version matches required 1.36.7
+      ansible.builtin.command:
+        cmd: python3 -c "import boto3; print(boto3.__version__)"
+      register: boto3_check
+      changed_when: false
+
+    - name: Display current boto3 version for verification
+      ansible.builtin.debug:
+        msg: "{{ boto3_check.stdout }}"
+
+    - name: Collect AWS EC2 instance metadata for configuration
+      amazon.aws.ec2_metadata_facts:
+
+    - name: Display current AWS region from instance metadata
+      debug:
+        msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+
+    - name: Install telnet package for network connectivity testing
+      ansible.builtin.dnf:
+        name: telnet
+        state: present
+
+- name: Stunnel Setup
+  block:
+    - name: Install stunnel package for secure tunneling service
+      ansible.builtin.dnf:
+        name: stunnel
+        state: present
+
+    # Ensure the stunnel configuration tasks
+    - name: Verify existence of stunnel configuration directory
+      ansible.builtin.stat:
+        path: /etc/stunnel
+      register: stunnel_dir
+
+    - name: Set stunnel directory and service variables
+      set_fact:
+        stunnel_dir_path: "{{ '/etc/stunnel' if stunnel_dir.stat.exists else '/etc/stunnel5' }}"
+        stunnel_service: "{{ 'stunnel' if stunnel_dir.stat.exists else 'stunnel5' }}"
+
+    - name: Retrieve stunnel certificate from SSM
+      set_fact:
+        stunnel_cert: "{{ lookup('amazon.aws.ssm_parameter', stunnel_cert_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
+      ignore_errors: false
+
+    - name: Deploy stunnel SSL certificate from SSM parameter
+      ansible.builtin.copy:
+        content: "{{ stunnel_cert }}"
+        dest: "{{ stunnel_dir_path }}/stunnel.pem"
+        mode: '0600'
+      notify: restart stunnel
+
+    - name: Retrieve stunnel configuration from SSM
+      set_fact:
+        stunnel_conf: "{{ lookup('amazon.aws.ssm_parameter', stunnel_conf_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
+      ignore_errors: false
+
+    - name: Deploy stunnel service configuration from SSM parameter
+      ansible.builtin.copy:
+        content: "{{ stunnel_conf }}"
+        dest: "{{ stunnel_dir_path }}/stunnel.conf"
+      notify: restart stunnel
+
+    - name: Configure stunnel systemd service execution path
+      ansible.builtin.lineinfile:
+        path: "/usr/lib/systemd/system/{{ stunnel_service }}.service"
+        regexp: '^ExecStart='
+        line: "ExecStart= /usr/bin/{{ stunnel_service }} {{ stunnel_dir_path }}/stunnel.conf"
+      notify: reload systemd

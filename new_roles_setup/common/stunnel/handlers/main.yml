@@ -1,0 +1,11 @@
+---
+- name: reload systemd
+  ansible.builtin.command:
+    cmd: systemctl daemon-reload
+  listen: reload systemd
+
+- name: restart stunnel
+  ansible.builtin.service:
+    name: "{{ stunnel_service }}"
+    state: restarted
+  listen: restart stunnel

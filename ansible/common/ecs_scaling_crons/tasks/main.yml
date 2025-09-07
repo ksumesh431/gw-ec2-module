@@ -1,0 +1,136 @@
+# -------------------------------
+# Fetch scaling_ecs_Services.py
+# -------------------------------
+- name: Retrieve scaling_ecs_Services.py from old EC2 instance
+  ansible.builtin.shell: |
+    aws ssm send-command \
+      --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+      --document-name "AWS-RunShellScript" \
+      --parameters 'commands=["cat /home/proot/scaling_ecs_Services.py"]' \
+      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --output text \
+      --query 'Command.CommandId'
+  register: scaling_ecs_cmd_id
+
+- name: Wait for 3 seconds before fetching scaling_ecs_Services.py output
+  ansible.builtin.wait_for:
+    timeout: 3
+
+- name: Get scaling_ecs_Services.py content
+  ansible.builtin.shell: |
+    aws ssm get-command-invocation \
+      --command-id "{{ scaling_ecs_cmd_id.stdout }}" \
+      --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --output text \
+      --query 'StandardOutputContent'
+  register: scaling_ecs_output
+  retries: 10
+  delay: 2
+  until: scaling_ecs_output.rc == 0
+
+- name: Debug if scaling_ecs_Services.py not found
+  ansible.builtin.debug:
+    msg: "File /home/proot/scaling_ecs_Services.py not found on instance {{ final_vars.old_gw_b_instnace_id }}"
+  when: scaling_ecs_output.stdout == ""
+
+- name: Copy scaling_ecs_Services.py to localhost
+  ansible.builtin.copy:
+    content: "{{ scaling_ecs_output.stdout }}"
+    dest: /home/proot/scaling_ecs_Services.py
+    mode: "0755"
+  when: scaling_ecs_output.stdout != ""
+
+# -------------------------------
+# Fetch auto_scaling_group_update.py
+# -------------------------------
+- name: Retrieve auto_scaling_group_update.py from old EC2 instance
+  ansible.builtin.shell: |
+    aws ssm send-command \
+      --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+      --document-name "AWS-RunShellScript" \
+      --parameters 'commands=["cat /home/proot/auto_scaling_group_update.py"]' \
+      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --output text \
+      --query 'Command.CommandId'
+  register: asg_update_cmd_id
+
+- name: Wait for 3 seconds before fetching auto_scaling_group_update.py output
+  ansible.builtin.wait_for:
+    timeout: 3
+
+- name: Get auto_scaling_group_update.py content
+  ansible.builtin.shell: |
+    aws ssm get-command-invocation \
+      --command-id "{{ asg_update_cmd_id.stdout }}" \
+      --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --output text \
+      --query 'StandardOutputContent'
+  register: asg_update_output
+  retries: 10
+  delay: 2
+  until: asg_update_output.rc == 0
+
+- name: Debug if auto_scaling_group_update.py not found
+  ansible.builtin.debug:
+    msg: "File /home/proot/auto_scaling_group_update.py not found on instance {{ final_vars.old_gw_b_instnace_id }}"
+  when: asg_update_output.stdout == ""
+
+- name: Copy auto_scaling_group_update.py to localhost
+  ansible.builtin.copy:
+    content: "{{ asg_update_output.stdout }}"
+    dest: /home/proot/auto_scaling_group_update.py
+    mode: "0755"
+  when: asg_update_output.stdout != ""
+
+# -------------------------------
+# Setup Cron Jobs
+# -------------------------------
+- name: Morning ecs cronjob
+  ansible.builtin.cron:
+    name: "Morning ecs cronjob"
+    job: "/home/proot/ecs/bin/python3 /home/proot/scaling_ecs_Services.py >> /var/log/ecs_scaling.logs"
+    minute: "50"
+    hour: "6"
+    weekday: "1-5"
+
+- name: Morning Auto-Scaling cronjob
+  ansible.builtin.cron:
+    name: "Morning Auto-Scaling cronjob"
+    job: "/home/proot/ecs/bin/python3 /home/proot/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
+    minute: "45"
+    hour: "6"
+    weekday: "1-5"
+
+- name: Night ecs cronjob
+  ansible.builtin.cron:
+    name: "Night ecs cronjob"
+    job: "/home/proot/ecs/bin/python3 /home/proot/scaling_ecs_Services.py >> /var/log/ecs_scaling.logs"
+    minute: "0"
+    hour: "19"
+    weekday: "1-5"
+
+- name: Night Autoscaling ecs cronjob
+  ansible.builtin.cron:
+    name: "Night Autoscaling ecs cronjob"
+    job: "sudo /home/proot/ecs/bin/python3 /home/proot/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
+    minute: "15"
+    hour: "19"
+    weekday: "5"
+
+- name: Night Auto-Scaling job
+  ansible.builtin.cron:
+    name: "Night Auto-Scaling job"
+    job: "/home/proot/ecs/bin/python3 /home/proot/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
+    minute: "10"
+    hour: "19"
+    weekday: "1-5"
+
+- name: CronJOB to delete the scaling logs
+  ansible.builtin.cron:
+    name: "CronJOB to delete the scaling logs"
+    job: "echo '' > /var/log/ecs_scaling.logs"
+    minute: "30"
+    hour: "13"
+    weekday: "6"

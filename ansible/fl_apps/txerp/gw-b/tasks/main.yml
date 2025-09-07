@@ -5,6 +5,10 @@
     # Reference the variable from the dictionary we created in pre_tasks
     var: final_vars.client_name
 
+- name: Include ecs_scaling_crons role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/ecs_scaling_crons"
+
 - name: Include observium role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/observium"

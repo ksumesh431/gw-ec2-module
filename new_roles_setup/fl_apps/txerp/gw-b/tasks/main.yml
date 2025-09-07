@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars:
-    ansible_python_interpreter: /usr/bin/python3
+    ansible_python_interpreter: auto
     # Can override any variables from the common role here if needed
     client_name: "whcopa" # Can be overridden for specific client (used for fethching old gateway b server using tag name)
 

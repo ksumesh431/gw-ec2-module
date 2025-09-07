@@ -1,18 +1,10 @@
 ---
 - name: Configure all services for gw-b
-  hosts: all
-  become: true
-  # vars:
-  #   ansible_python_interpreter: "/usr/bin/python3"
-  #   # Can override any variables from the common role here if needed
-  #   client_name: "arlitx" # Can be overridden for specific client (used for fethching old gateway b server using tag name)
-
-  tasks:
+  block:
 
     - name: Debug client_name variable
       debug:
         var: client_name
-
 
 
     - name: Include observium role

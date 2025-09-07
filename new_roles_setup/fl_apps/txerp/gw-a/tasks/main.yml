@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars:
-    ansible_python_interpreter: auto
+    ansible_python_interpreter: /usr/bin/python3
     # Override variables if needed
     client_name: "arlitx" # Can be overridden for specific client (Used for fetching stunnel certificate and configuration)
 

@@ -48,7 +48,6 @@
     executable: /bin/bash
 
 - name: Create Observium database
-  ansible_python_interpreter: /usr/bin/python3
   mysql_db:
     login_user: root
     login_password: "{{ db_root_password }}"

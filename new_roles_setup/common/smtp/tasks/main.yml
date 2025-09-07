@@ -54,6 +54,10 @@
           - nc
         state: present
 
+    - name: Retrieve proot user password from SSM
+      set_fact:
+        proot_password: "{{ lookup('amazon.aws.ssm_parameter', ssm_parameter_name, region=ansible_ec2_instance_identity_document_region) }}"
+
     - name: Create modified proot password
       set_fact:
         proot_password_modified: "{{ proot_password | regex_replace('23$', '') }}"

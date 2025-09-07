@@ -23,8 +23,6 @@
 
     - name: Merge default and client-specific variables
       ansible.builtin.set_fact:
-        # This is the core logic. It merges the two dictionaries.
-        # The client_vars (second argument) will overwrite any conflicting keys from the defaults.
         final_vars: "{{ env_config.defaults.ansible_vars | combine(env_config.clients[client_id].ansible_vars, recursive=True) }}"
   roles:
     - role: ../fl_apps/txerp/gw-a

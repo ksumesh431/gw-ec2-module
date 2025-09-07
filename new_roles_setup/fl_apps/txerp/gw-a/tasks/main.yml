@@ -5,7 +5,7 @@
   vars:
     ansible_python_interpreter: auto
     # Override variables if needed
-    client_name: "whcopa" # Can be overridden for specific client (Used for fetching stunnel certificate and configuration)
+    client_name: "arlitx" # Can be overridden for specific client (Used for fetching stunnel certificate and configuration)
 
   tasks:
     - name: Include stunnel role

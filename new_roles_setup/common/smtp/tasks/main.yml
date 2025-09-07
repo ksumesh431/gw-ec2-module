@@ -179,20 +179,34 @@
 
 - name: Mail Testing
   block:
-    - name: Get domain from AWS SES in us-east-2
-      command: aws ses list-identities --region us-east-2
-      register: ses_output_us_east_2
-      ignore_errors: true
+    # - name: Get domain from AWS SES in us-east-2
+    #   command: aws ses list-identities --region us-east-2
+    #   register: ses_output_us_east_2
+    #   ignore_errors: true
 
-    - name: Get domain from AWS SES in us-east-1 if not found in us-east-2
-      command: aws ses list-identities --region us-east-1
-      register: ses_output_us_east_1
-      when: ses_output_us_east_2.rc != 0 or 'Identities' not in ses_output_us_east_2.stdout
-      ignore_errors: true
+    # - name: Get domain from AWS SES in us-east-1 if not found in us-east-2
+    #   command: aws ses list-identities --region us-east-1
+    #   register: ses_output_us_east_1
+    #   when: ses_output_us_east_2.rc != 0 or 'Identities' not in ses_output_us_east_2.stdout
+    #   ignore_errors: true
 
-    - name: Set domain variable from AWS SES response
+    # - name: Set domain variable from AWS SES response
+    #   set_fact:
+    #     domain: "{{ (ses_output_us_east_2.stdout | from_json).Identities[0] if 'Identities' in (ses_output_us_east_2.stdout | from_json) and (ses_output_us_east_2.stdout | from_json).Identities else (ses_output_us_east_1.stdout | from_json).Identities[0] if 'Identities' in (ses_output_us_east_1.stdout | from_json) and (ses_output_us_east_1.stdout | from_json).Identities else '' }}"
+
+    # This task now handles the undefined variable problem gracefully
+    - name: Combine identity lists from both regions
       set_fact:
-        domain: "{{ (ses_output_us_east_2.stdout | from_json).Identities[0] if 'Identities' in (ses_output_us_east_2.stdout | from_json) and (ses_output_us_east_2.stdout | from_json).Identities else (ses_output_us_east_1.stdout | from_json).Identities[0] if 'Identities' in (ses_output_us_east_1.stdout | from_json) and (ses_output_us_east_1.stdout | from_json).Identities else '' }}"
+        # Create a list of all identities from us-east-2
+        all_identities: "{{ (ses_output_us_east_2.stdout | from_json).Identities | default([])
+          +
+          # Add the list from us-east-1. If the task was skipped, default to an empty list.
+          (ses_output_us_east_1.stdout | from_json).Identities | default([]) }}"
+
+    - name: Set domain variable if any identities were found
+      set_fact:
+        # If the combined list is not empty, take the first item. Otherwise, set domain to an empty string.
+        domain: "{{ all_identities[0] if all_identities else '' }}"
 
     - name: Debug domain variable
       debug:

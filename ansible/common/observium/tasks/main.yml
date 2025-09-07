@@ -1,6 +1,14 @@
 ---
 - name: Observium heartbeat cron setup block
   block:
+
+    - name: Collect AWS EC2 instance metadata for configuration
+      amazon.aws.ec2_metadata_facts:
+
+    - name: Display current AWS region from instance metadata
+      debug:
+        msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+
     - name: Check if ObserviumHeartbeat.sh exists on old EC2 instance
       ansible.builtin.shell: |
         aws ssm send-command \

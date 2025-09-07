@@ -59,3 +59,8 @@ This project is a Terraform EC2 deployment that uses a remote S3 backend for sta
 
 - Ensure that the S3 bucket specified in `TF_VAR_s3_bucket_name` exists and is accessible.
 - The AWS region is specified in the `terraform.tfvars` file and can be modified as needed.
+
+
+
+cd ansible
+ansible-playbook -i localhost, playbooks/deploy_gateway_a.yml   -e "client_id=arlitx"

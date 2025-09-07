@@ -1,66 +1,89 @@
-# EC2 Instance Module
+# Environment Variables & Multi-Client Automation Guide
 
-This project is a Terraform EC2 deployment that uses a remote S3 backend for state files.
+Welcome! This project is designed for seamless infrastructure and configuration management across multiple clients using **Terraform** and **Ansible**. This guide explains how environment variables are managed and how to run commands for different clients.
 
-## Prerequisites
+---
 
-- Terraform installed on your local machine.
-- AWS credentials configured on your local machine.
-- The `TF_VAR_s3_bucket_name` environment variable set to the name of the S3 bucket where you want to store the Terraform state files.
+## 🌎 Environment Variables Setup
 
-## Usage
+All environment variables for Terraform and Ansible are managed centrally in [`env_vars.yml`](./env_vars.yml). This YAML file contains:
 
-1. Clone the repository:
+- **defaults**: Shared variables for all clients.
+- **clients**: Client-specific overrides for both Terraform and Ansible.
 
+### Example Structure
+```yaml
+defaults:
+  ansible_vars:
+    ansible_python_interpreter: /usr/bin/python3
+  terraform_vars:
+    # shared terraform vars
+clients:
+  arlitx:
+    ansible_vars:
+      client_name: arlitx
+      # ...
+    terraform_vars:
+      aws_region: us-east-2
+      # ...
+  client_id2:
+    ansible_vars: {}
+    terraform_vars: {}
+```
+
+- **To add a new client**: Copy the structure under `arlitx` and update the values as needed.
+- **Variables are merged**: Defaults are merged with client-specific values automatically when running commands.
+
+---
+
+## 🚀 Running Terraform Commands
+
+All Terraform commands are executed via the helper script [`run-tf.sh`](./run-tf.sh), which:
+- Merges the correct environment variables for your chosen client.
+- Writes them to `terraform/generated.auto.tfvars.json`.
+- Runs the desired Terraform command in the `terraform/` directory.
+
+### Usage
+```bash
+╰─  ./run-tf.sh <terraform_command> <client_id> [extra_args]
+```
+- `<terraform_command>`: Any Terraform command (e.g., `plan`, `apply`, `destroy`)
+- `<client_id>`: The client key as defined in `env_vars.yml` (e.g., `arlitx`)
+- `[extra_args]`: Any additional arguments for Terraform
+
+#### Example
+```bash
+╰─  ./run-tf.sh plan arlitx
+```
+
+---
+
+## 🛠️ Running Ansible Playbooks
+
+To run Ansible playbooks for a specific client:
+1. **Change directory** to the `ansible/` folder:
    ```bash
-   git clone <repository-url>
-   cd <repository-directory>
+   cd ansible
    ```
-
-2. Set the `TF_VAR_s3_bucket_name` environment variable:
-
+2. **Run the playbook** with the required variables:
    ```bash
-   export TF_VAR_s3_bucket_name=<your-s3-bucket-name>
+   ansible-playbook -i localhost, fl_apps/txerp/gw-b/tasks/main.yml \
+     -e "hosts=localhost ansible_connection=local client_id=arlitx"
    ```
+   - Replace `gw-b` and the playbook path as needed for your use case.
+   - Change `client_id=arlitx` to your target client.
 
-3. Initialize the Terraform project:
+---
 
-   ```bash
-   terraform init -backend-config="bucket=${TF_VAR_s3_bucket_name}"
-   ```
+## 📚 References
+- [`env_vars.yml`](./env_vars.yml): All environment variables and client configs
+- [`run-tf.sh`](./run-tf.sh): Script for running Terraform with correct variables
+- [`ansible/`](./ansible/): Ansible playbooks and roles
 
-4. Plan the deployment:
+---
 
-   ```bash
-   terraform plan
-   ```
+> **Tip:** Always ensure your `client_id` matches a key in `env_vars.yml`.
 
-5. Apply the deployment:
+---
 
-   ```bash
-   terraform apply
-   ```
-
-6. To destroy the deployment:
-
-   ```bash
-   terraform destroy
-   ```
-
-## Project Structure
-
-- `main.tf`: Contains the main Terraform configuration.
-- `provider.tf`: Specifies the provider for the deployment.
-- `variables.tf`: Defines the input variables for the project.
-- `terraform.tfvars`: Provides default values for the variables.
-- `modules/`: Contains reusable modules for the deployment.
-
-## Notes
-
-- Ensure that the S3 bucket specified in `TF_VAR_s3_bucket_name` exists and is accessible.
-- The AWS region is specified in the `terraform.tfvars` file and can be modified as needed.
-
-
-
-cd ansible
-ansible-playbook -i localhost, playbooks/deploy_gateway_a.yml   -e "client_id=arlitx"
+**Happy automating!**

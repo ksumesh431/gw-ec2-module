@@ -27,8 +27,8 @@ clients:
       aws_region: us-east-2
       # ...
   client_id2:
-    ansible_vars: {}
-    terraform_vars: {}
+    ansible_vars: 
+    terraform_vars: 
 ```
 
 - **To add a new client**: Copy the structure under `arlitx` and update the values as needed.

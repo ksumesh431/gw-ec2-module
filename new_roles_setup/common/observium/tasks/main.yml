@@ -63,7 +63,6 @@
     priv: "{{ db_name }}.*:ALL"
     host: localhost
     state: present
-    column_case_sensitive: false
 
 - name: Check if /opt/observium is a valid SVN repository
   command: svn info /opt/observium

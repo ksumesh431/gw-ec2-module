@@ -30,12 +30,6 @@ data "aws_security_group" "edge_sg" {
   }
 }
 
-# data "aws_instance" "old_gw_b_server" {
-#   filter {
-#     name   = "tag:Name"
-#     values = ["${var.client_name}-gw-b"]
-#   }
-# }
 
 locals {
   defined_subnet_id = var.tag_logical_name == "GatewayAServer" ? var.gw_a_subnet : var.gw_b_subnet
@@ -56,7 +50,6 @@ resource "aws_instance" "ec2" {
   #     "${path.module}/files/ansible/${var.tag_logical_name == "GatewayAServer" ? "ansible_playbook_gw_a.tpl" : "ansible_playbook_gw_b.tpl"}",
   #     {
   #       client_name = var.client_name
-  #       old_gw_b_server_ip = data.aws_instance.old_gw_b_server.private_ip
   #     }
   #   )
   # })
@@ -78,4 +71,28 @@ resource "aws_instance" "ec2" {
     Role             = var.tag_role
     State            = var.tag_state
   }
+}
+
+# Conditional EIP migration from old gateway to this instance
+locals {
+  is_gateway_a    = var.tag_logical_name == "GatewayAServer"
+  do_migrate_eip  = local.is_gateway_a ? var.migrate_gw_a_eip : var.migrate_gw_b_eip
+  old_instance_id = local.is_gateway_a ? var.old_gw_a_instance_id : var.old_gw_b_instance_id
+}
+
+data "aws_instance" "old_gateway" {
+  count       = local.do_migrate_eip && local.old_instance_id != "" ? 1 : 0
+  instance_id = local.old_instance_id
+}
+
+data "aws_eip" "old_gateway_eip" {
+  count     = local.do_migrate_eip && local.old_instance_id != "" ? 1 : 0
+  public_ip = data.aws_instance.old_gateway[0].public_ip
+}
+
+resource "aws_eip_association" "migrate_eip" {
+  count               = local.do_migrate_eip && local.old_instance_id != "" ? 1 : 0
+  allocation_id       = data.aws_eip.old_gateway_eip[0].id
+  instance_id         = aws_instance.ec2.id
+  allow_reassociation = true
 }

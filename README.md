@@ -12,6 +12,7 @@ All environment variables for Terraform and Ansible are managed centrally in [`e
 - **clients**: Client-specific overrides for both Terraform and Ansible.
 
 ### Example Structure
+
 ```yaml
 defaults:
   ansible_vars:
@@ -27,8 +28,8 @@ clients:
       aws_region: us-east-2
       # ...
   client_id2:
-    ansible_vars: 
-    terraform_vars: 
+    ansible_vars:
+    terraform_vars:
 ```
 
 - **To add a new client**: Copy the structure under `arlitx` and update the values as needed.
@@ -39,19 +40,23 @@ clients:
 ## 🚀 Running Terraform Commands
 
 All Terraform commands are executed via the helper script [`run-tf.sh`](./run-tf.sh), which:
+
 - Merges the correct environment variables for your chosen client.
 - Writes them to `terraform/generated.auto.tfvars.json`.
 - Runs the desired Terraform command in the `terraform/` directory.
 
 ### Usage
+
 ```bash
  ./run-tf.sh <terraform_command> <client_id> [extra_args]
 ```
+
 - `<terraform_command>`: Any Terraform command (e.g., `plan`, `apply`, `destroy`)
 - `<client_id>`: The client key as defined in `env_vars.yml` (e.g., `arlitx`)
 - `[extra_args]`: Any additional arguments for Terraform
 
 #### Example
+
 ```bash
  ./run-tf.sh plan arlitx
 ```
@@ -61,6 +66,7 @@ All Terraform commands are executed via the helper script [`run-tf.sh`](./run-tf
 ## 🛠️ Running Ansible Playbooks
 
 To run Ansible playbooks for a specific client:
+
 1. **Change directory** to the `ansible/` folder:
    ```bash
    cd ansible
@@ -76,6 +82,7 @@ To run Ansible playbooks for a specific client:
 ---
 
 ## 📚 References
+
 - [`env_vars.yml`](./env_vars.yml): All environment variables and client configs
 - [`run-tf.sh`](./run-tf.sh): Script for running Terraform with correct variables
 - [`ansible/`](./ansible/): Ansible playbooks and roles

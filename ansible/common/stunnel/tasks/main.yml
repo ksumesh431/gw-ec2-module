@@ -56,7 +56,7 @@
       ansible.builtin.copy:
         content: "{{ stunnel_cert }}"
         dest: "{{ stunnel_dir_path }}/stunnel.pem"
-        mode: '0600'
+        mode: "0600"
       notify: restart stunnel
 
     - name: Retrieve stunnel configuration from old EC2 instance via AWS CLI
@@ -69,6 +69,10 @@
           --output text \
           --query 'Command.CommandId'
       register: command_id
+
+    - name: Wait for 3 seconds before fetching SSM command output
+      ansible.builtin.wait_for:
+        timeout: 3
 
     - name: Wait for SSM command to complete and get output
       ansible.builtin.shell: |
@@ -91,16 +95,21 @@
       ansible.builtin.debug:
         msg: "{{ stunnel_conf }}"
 
+    - name: Save stunnel configuration to output directory for client
+      ansible.builtin.copy:
+        content: "{{ stunnel_conf }}"
+        dest: "{{ playbook_dir }}/../../config_files_output/stunnel/{{ client_name }}.stunnel.conf"
+        mode: "0644"
+
     - name: Deploy stunnel service configuration from old instance
       ansible.builtin.copy:
         content: "{{ stunnel_conf }}"
         dest: "{{ stunnel_dir_path }}/stunnel.conf"
       notify: restart stunnel
 
-
     - name: Configure stunnel systemd service execution path
       ansible.builtin.lineinfile:
         path: "/usr/lib/systemd/system/{{ stunnel_service }}.service"
-        regexp: '^ExecStart='
+        regexp: "^ExecStart="
         line: "ExecStart= /usr/bin/{{ stunnel_service }} {{ stunnel_dir_path }}/stunnel.conf"
       notify: reload systemd

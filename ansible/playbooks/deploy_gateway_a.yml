@@ -27,4 +27,4 @@
         # The client_vars (second argument) will overwrite any conflicting keys from the defaults.
         final_vars: "{{ env_config.defaults.ansible_vars | combine(env_config.clients[client_id].ansible_vars, recursive=True) }}"
   roles:
-    - role: ../fl_apps/txerp/gw-b
+    - role: ../fl_apps/txerp/gw-a

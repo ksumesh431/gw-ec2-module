@@ -194,25 +194,20 @@
 
     - name: Combine identity lists from both regions
       set_fact:
-        # Get identities from us-east-2 if command succeeded and has identities
-        identities_2: >-
-          {% if ses_output_us_east_2 is defined and ses_output_us_east_2.rc == 0 %}
-            {{ (ses_output_us_east_2.stdout | from_json).Identities | default([]) }}
-          {% else %}
-            []
-          {% endif %}
+        # Get identities from us-east-2 if command succeeded
+        identities_2: "{{ (ses_output_us_east_2.stdout | from_json).Identities | default([]) if (ses_output_us_east_2 is defined and ses_output_us_east_2.rc == 0) else [] }}"
         # Get identities from us-east-1 if command ran and succeeded
-        identities_1: >-
-          {% if ses_output_us_east_1 is defined and ses_output_us_east_1.rc is defined and ses_output_us_east_1.rc == 0 %}
-            {{ (ses_output_us_east_1.stdout | from_json).Identities | default([]) }}
-          {% else %}
-            []
-          {% endif %}
+        identities_1: "{{ (ses_output_us_east_1.stdout | from_json).Identities | default([]) if (ses_output_us_east_1 is defined and ses_output_us_east_1.rc is defined and ses_output_us_east_1.rc == 0) else [] }}"
 
     - name: Set final domain variable from combined list
       set_fact:
         all_identities: "{{ identities_2 + identities_1 }}"
-        domain: "{{ (identities_2 + identities_1) | first | default('') }}"
+        # Filter to get only domain names (not email addresses)
+        domain_candidates: "{{ (identities_2 + identities_1) | select('match', '^[^@]+\\.[a-z]+$') | list }}"
+
+    - name: Select best domain
+      set_fact:
+        domain: "{{ domain_candidates | first | default((identities_2 + identities_1) | first | default('')) }}"
 
     - name: Debug all variables
       debug:
@@ -220,6 +215,7 @@
           US-East-2 identities: {{ identities_2 }}
           US-East-1 identities: {{ identities_1 }}
           All identities: {{ all_identities }}
+          Domain candidates: {{ domain_candidates }}
           Selected domain: {{ domain }}
 
     - name: Send test email using netcat

@@ -89,7 +89,7 @@
 
     - name: Debug fetched stunnel configuration content
       ansible.builtin.debug:
-      msg: "{{ stunnel_conf }}"
+        msg: "{{ stunnel_conf }}"
 
     - name: Deploy stunnel service configuration from old instance
       ansible.builtin.copy:

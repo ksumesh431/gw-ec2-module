@@ -97,6 +97,7 @@
   loop:
     - { regexp: "'USERNAME'", replace: "'{{ db_user }}'" }
     - { regexp: "'PASSWORD'", replace: "'{{ db_password }}'" }
+  no_log: true
 
 - name: Initialize Observium database
   command: php /opt/observium/discovery.php -u

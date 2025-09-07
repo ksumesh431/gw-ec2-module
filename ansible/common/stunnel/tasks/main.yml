@@ -60,15 +60,11 @@
       notify: restart stunnel
 
     - name: Retrieve stunnel configuration from the old instance via SSM Run Command
-      amazon.aws.aws_ssm:
-        targets:
-          - Key: InstanceIds
-            Values:
-              - "{{ final_vars.old_gw_a_instnace_id }}"
-        document_name: AWS-RunShellScript
-        parameters:
-          commands:
-            - cat /etc/stunnel/stunnel.conf
+      community.aws.ssm_send_command:
+        instance_ids:
+          - "{{ final_vars.old_gw_a_instnace_id }}"
+        command: "cat /etc/stunnel/stunnel.conf"
+        # The 'run_once' is important so we only fetch the file once, not for every host in the play.
       run_once: true
       register: old_stunnel_conf_command
 

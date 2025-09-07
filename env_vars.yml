@@ -1,0 +1,17 @@
+defaults:
+  ansible_vars:
+    ansible_python_interpreter: /usr/bin/python3
+    hosts: localhost
+    ansible_connection: local
+  terraform_vars:
+
+clients:
+  arlitx:
+    ansible_vars:
+      client_id: arlitx
+    terraform_vars:
+
+  client_id2:
+    ansible_vars:
+
+    terraform_vars:

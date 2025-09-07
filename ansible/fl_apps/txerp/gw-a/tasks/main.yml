@@ -1,0 +1,38 @@
+---
+- name: Configure all services for gw-a
+  hosts: all
+  become: true
+  # vars:
+    # ansible_python_interpreter: /usr/bin/python3
+    # Override variables if needed
+    # client_name: "arlitx" # Can be overridden for specific client (Used for fetching stunnel certificate and configuration)
+
+  tasks:
+    - name: Load root env config (env_vars.yml)
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../../../../env_vars.yml"
+        name: env_config
+
+    - name: Validate client_id if provided
+      ansible.builtin.assert:
+        that:
+          - env_config is defined
+          - env_config.clients is defined
+          - env_config.clients.get(client_id, None) is not none
+        fail_msg: "Client ID '{{ client_id }}' not found in env_vars.yml"
+      when: client_id is defined and client_id | length > 0
+
+    - name: Merge default + client ansible vars
+      ansible.builtin.set_fact:
+        env_ansible_vars: >-
+          {{
+            (env_config.defaults.ansible_vars | default({}))
+            | combine((env_config.clients.get(client_id, {}).ansible_vars | default({})), recursive=True)
+          }}
+
+    - name: Export merged ansible vars as facts
+      ansible.builtin.set_fact: "{{ env_ansible_vars }}"
+
+    - name: Include stunnel role
+      ansible.builtin.include_role:
+        name: ../../../../common/stunnel

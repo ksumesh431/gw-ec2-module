@@ -179,27 +179,23 @@
 
 - name: Mail Testing
   block:
-    # - name: Get domain from AWS SES in us-east-2
-    #   command: aws ses list-identities --region us-east-2
-    #   register: ses_output_us_east_2
-    #   ignore_errors: true
+    - name: Get domain from AWS SES in us-east-2
+      command: aws ses list-identities --region us-east-2
+      register: ses_output_us_east_2
+      ignore_errors: true
 
-    # - name: Get domain from AWS SES in us-east-1 if not found in us-east-2
-    #   command: aws ses list-identities --region us-east-1
-    #   register: ses_output_us_east_1
-    #   when: ses_output_us_east_2.rc != 0 or 'Identities' not in ses_output_us_east_2.stdout
-    #   ignore_errors: true
-
-    # - name: Set domain variable from AWS SES response
-    #   set_fact:
-    #     domain: "{{ (ses_output_us_east_2.stdout | from_json).Identities[0] if 'Identities' in (ses_output_us_east_2.stdout | from_json) and (ses_output_us_east_2.stdout | from_json).Identities else (ses_output_us_east_1.stdout | from_json).Identities[0] if 'Identities' in (ses_output_us_east_1.stdout | from_json) and (ses_output_us_east_1.stdout | from_json).Identities else '' }}"
+    - name: Get domain from AWS SES in us-east-1 if not found in us-east-2
+      command: aws ses list-identities --region us-east-1
+      register: ses_output_us_east_1
+      when: ses_output_us_east_2.rc != 0 or 'Identities' not in ses_output_us_east_2.stdout
+      ignore_errors: true
 
     - name: Combine identity lists from both regions
       set_fact:
         # Get identities from us-east-2, default to empty list if variable is undefined or failed
-        identities_2: "{{ (ses_output_us_east_2.stdout | from_json).Identities | default([]) if ses_output_us_east_2 is defined and ses_output_us_east_2.stdout is defined else [] }}"
+        identities_2: "{{ (ses_output_us_east_2.stdout | from_json).Identities | default([]) if ses_output_us_east_2 is defined and ses_output_us_east_2.rc == 0 else [] }}"
         # Get identities from us-east-1 ONLY IF the variable is defined AND has output, otherwise default to an empty list
-        identities_1: "{{ (ses_output_us_east_1.stdout | from_json).Identities | default([]) if ses_output_us_east_1 is defined and ses_output_us_east_1.stdout is defined else [] }}"
+        identities_1: "{{ (ses_output_us_east_1.stdout | from_json).Identities | default([]) if ses_output_us_east_1 is defined and ses_output_us_east_1.rc == 0 else [] }}"
 
     - name: Set final domain variable from combined list
       set_fact:

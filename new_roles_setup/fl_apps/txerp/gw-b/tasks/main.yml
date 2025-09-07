@@ -10,9 +10,9 @@
   tasks:
 
 
-    - name: Include observium role
-      ansible.builtin.include_role:
-        name: ../../../../common/observium
+    # - name: Include observium role
+    #   ansible.builtin.include_role:
+    #     name: ../../../../common/observium
 
     - name: Include smtp role
       ansible.builtin.include_role:

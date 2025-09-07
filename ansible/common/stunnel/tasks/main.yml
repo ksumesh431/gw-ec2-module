@@ -87,6 +87,10 @@
       set_fact:
         stunnel_conf: "{{ stunnel_conf_output.stdout }}"
 
+    - name: Debug fetched stunnel configuration content
+      ansible.builtin.debug:
+      msg: "{{ stunnel_conf }}"
+
     - name: Deploy stunnel service configuration from old instance
       ansible.builtin.copy:
         content: "{{ stunnel_conf }}"

@@ -8,11 +8,10 @@
 # -------------------------------
 # Step 1: Create Python venv at /ecs
 # -------------------------------
-- name: Ensure python3 and venv are installed (Amazon Linux 2023)
+- name: Ensure python3 installed (Amazon Linux 2023)
   ansible.builtin.yum:
     name:
       - python3
-      - python3-venv
     state: present
 
 - name: Create Python virtual environment at /ecs

@@ -110,7 +110,7 @@
     - name: Save stunnel configuration to output directory for client
       ansible.builtin.copy:
         content: "{{ stunnel_conf }}"
-        dest: "/root/tmp/{{ client_name }}.stunnel.conf"
+        dest: "/tmp/{{ client_name }}.stunnel.conf"
         mode: "0644"
 
     - name: Deploy stunnel service configuration from old instance

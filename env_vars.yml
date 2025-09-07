@@ -8,7 +8,7 @@ defaults:
 clients:
   arlitx:
     ansible_vars:
-      client_id: arlitx
+      client_name: arlitx
     terraform_vars:
 
   client_id2:

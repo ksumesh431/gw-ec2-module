@@ -14,37 +14,38 @@ class VarsModule(BaseVarsPlugin):
     def get_vars(self, loader, path, entities, cache=True):
         super(VarsModule, self).get_vars(loader, path, entities)
 
-        # --- DEBUGGING ---
         display.warning(">>>> [DEBUG] client_loader plugin is now running.")
 
-        client_id = self._options.get('extra_vars', {}).get('client_id')
+        # --- THIS IS THE NEW, ROBUST LOGIC ---
+        # Get the extra_vars as a list (its raw form in the plugin)
+        extra_vars_list = self._options.get('extra_vars', [])
+        client_id = None
+
+        # Manually parse the list to find our key=value pair
+        for var_string in extra_vars_list:
+            if isinstance(var_string, str) and var_string.startswith('client_id='):
+                # Split 'client_id=arlitx' into ['client_id', 'arlitx'] and take the second part
+                client_id = var_string.split('=', 1)[1]
+                break
+        
         if not client_id:
-            display.warning(">>>> [DEBUG] No client_id found in extra_vars. Plugin is exiting.")
+            display.warning(">>>> [DEBUG] No 'client_id' key found in extra_vars list. Plugin is exiting.")
             return {}
         
-        display.warning(f">>>> [DEBUG] Found client_id: {client_id}")
+        display.warning(f">>>> [DEBUG] Successfully parsed client_id: {client_id}")
 
-        # --- THE CRITICAL PATH CALCULATION ---
-        # ansible.cfg is inside 'ansible/', so this plugin file is also inside 'ansible/'.
-        # We need to find env_vars.yml at the project root, which is two levels up from this file's location.
-        # __file__ is the absolute path to this very python script.
+        # Path calculation from previous step (this part is correct)
         plugin_dir = os.path.dirname(os.path.realpath(__file__))
-        project_root = os.path.abspath(os.path.join(plugin_dir, '..')) # Go up from ansible/vars_plugins to ansible/, then up to the root.
+        project_root = os.path.abspath(os.path.join(plugin_dir, '..'))
         config_path = os.path.join(project_root, 'env_vars.yml')
         
-        display.warning(f">>>> [DEBUG] Plugin file is at: {__file__}")
-        display.warning(f">>>> [DEBUG] Calculated project root: {project_root}")
-        display.warning(f">>>> [DEBUG] Final config path to env_vars.yml: {config_path}")
-
         if not os.path.exists(config_path):
             display.error(f">>>> [FATAL] env_vars.yml NOT FOUND at calculated path: {config_path}")
             return {}
 
-        try:
-            with open(config_path, 'r') as f:
-                env_config = yaml.safe_load(f)
-        except Exception as e:
-            raise AnsibleError(f"Error loading or parsing env_vars.yml: {e}")
+        # The rest of the logic remains the same
+        with open(config_path, 'r') as f:
+            env_config = yaml.safe_load(f)
 
         defaults = env_config.get('defaults', {}).get('ansible_vars', {})
         client_vars = env_config.get('clients', {}).get(client_id, {}).get('ansible_vars', {})

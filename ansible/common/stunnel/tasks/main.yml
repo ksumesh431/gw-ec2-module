@@ -95,6 +95,12 @@
       ansible.builtin.debug:
         msg: "{{ stunnel_conf }}"
 
+    - name: Create stunnel output directory
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../../config_files_output/stunnel"
+        state: directory
+        mode: "0755"
+
     - name: Save stunnel configuration to output directory for client
       ansible.builtin.copy:
         content: "{{ stunnel_conf }}"

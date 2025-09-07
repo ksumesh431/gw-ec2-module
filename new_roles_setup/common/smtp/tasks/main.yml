@@ -196,17 +196,18 @@
 
     - name: Combine identity lists from both regions
       set_fact:
-        all_identities: >-
-          {{
-            (ses_output_us_east_2.stdout | from_json).Identities | default([])
-            +
-            (ses_output_us_east_1.stdout | from_json).Identities | default([])
-          }}
+        # Get identities from us-east-2, default to empty list on failure
+        identities_2: "{{ (ses_output_us_east_2.stdout | from_json).Identities | default([]) }}"
+        # Get identities from us-east-1 ONLY IF the variable is defined AND has output, otherwise default to an empty list
+        identities_1: "{{ (ses_output_us_east_1.stdout | from_json).Identities if ses_output_us_east_1 is defined and ses_output_us_east_1.stdout else [] }}"
 
-    - name: Set domain variable if any identities were found
+    - name: Set final domain variable from combined list
       set_fact:
-        # If the combined list is not empty, take the first item. Otherwise, set domain to an empty string.
-        domain: "{{ all_identities[0] if all_identities else '' }}"
+        # Combine the two lists
+        all_identities: "{{ identities_2 + identities_1 }}"
+        # Take the first item if the combined list is not empty, otherwise set to ''
+        domain: "{{ (identities_2 + identities_1) | first | default('') }}"
+
 
     - name: Debug domain variable
       debug:

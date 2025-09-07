@@ -187,26 +187,40 @@
     - name: Get domain from AWS SES in us-east-1 if not found in us-east-2
       command: aws ses list-identities --region us-east-1
       register: ses_output_us_east_1
-      when: ses_output_us_east_2.rc != 0 or 'Identities' not in ses_output_us_east_2.stdout
+      when: >
+        ses_output_us_east_2.rc != 0 or 
+        (ses_output_us_east_2.rc == 0 and ((ses_output_us_east_2.stdout | from_json).Identities | length == 0))
       ignore_errors: true
 
     - name: Combine identity lists from both regions
       set_fact:
-        # Get identities from us-east-2, default to empty list if variable is undefined or failed
-        identities_2: "{{ (ses_output_us_east_2.stdout | from_json).Identities | default([]) if ses_output_us_east_2 is defined and ses_output_us_east_2.rc == 0 else [] }}"
-        # Get identities from us-east-1 ONLY IF the variable is defined AND has output, otherwise default to an empty list
-        identities_1: "{{ (ses_output_us_east_1.stdout | from_json).Identities | default([]) if ses_output_us_east_1 is defined and ses_output_us_east_1.rc == 0 else [] }}"
+        # Get identities from us-east-2 if command succeeded and has identities
+        identities_2: >-
+          {% if ses_output_us_east_2 is defined and ses_output_us_east_2.rc == 0 %}
+            {{ (ses_output_us_east_2.stdout | from_json).Identities | default([]) }}
+          {% else %}
+            []
+          {% endif %}
+        # Get identities from us-east-1 if command ran and succeeded
+        identities_1: >-
+          {% if ses_output_us_east_1 is defined and ses_output_us_east_1.rc is defined and ses_output_us_east_1.rc == 0 %}
+            {{ (ses_output_us_east_1.stdout | from_json).Identities | default([]) }}
+          {% else %}
+            []
+          {% endif %}
 
     - name: Set final domain variable from combined list
       set_fact:
-        # Combine the two lists
         all_identities: "{{ identities_2 + identities_1 }}"
-        # Take the first item if the combined list is not empty, otherwise set to ''
         domain: "{{ (identities_2 + identities_1) | first | default('') }}"
 
-    - name: Debug domain variable
+    - name: Debug all variables
       debug:
-        msg: "Domain fetched: {{ domain }}"
+        msg: |
+          US-East-2 identities: {{ identities_2 }}
+          US-East-1 identities: {{ identities_1 }}
+          All identities: {{ all_identities }}
+          Selected domain: {{ domain }}
 
     - name: Send test email using netcat
       shell: |

@@ -59,19 +59,33 @@
         mode: '0600'
       notify: restart stunnel
 
-    - name: Retrieve stunnel configuration from old EC2 instance via SSM
-      amazon.aws.aws_ssm:
-        document_name: "AWS-RunShellScript"
-        instance_ids:
-          - "{{ final_vars.old_gw_a_instnace_id }}"
-        parameters:
-          commands:
-            - "cat /etc/stunnel/stunnel.conf"
-      register: ssm_result
+    - name: Retrieve stunnel configuration from old EC2 instance via AWS CLI
+      ansible.builtin.shell: |
+        aws ssm send-command \
+          --instance-ids "{{ final_vars.old_gw_a_instnace_id }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["cat /etc/stunnel/stunnel.conf"]' \
+          --region "{{ ansible_ec2_instance_identity_document_region }}" \
+          --output text \
+          --query 'Command.CommandId'
+      register: command_id
 
-    - name: Extract stunnel configuration content
+    - name: Wait for SSM command to complete and get output
+      ansible.builtin.shell: |
+        aws ssm get-command-invocation \
+          --command-id "{{ command_id.stdout }}" \
+          --instance-id "{{ final_vars.old_gw_a_instnace_id }}" \
+          --region "{{ ansible_ec2_instance_identity_document_region }}" \
+          --output text \
+          --query 'StandardOutputContent'
+      register: stunnel_conf_output
+      retries: 10
+      delay: 2
+      until: stunnel_conf_output.rc == 0
+
+    - name: Set stunnel configuration content
       set_fact:
-        stunnel_conf: "{{ ssm_result.command_invocations[0].command_plugins[0].output }}"
+        stunnel_conf: "{{ stunnel_conf_output.stdout }}"
 
     - name: Deploy stunnel service configuration from old instance
       ansible.builtin.copy:

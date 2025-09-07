@@ -1,16 +1,16 @@
+# ansible/fl_apps/txerp/gw-b/tasks/main.yml
 ---
-- name: Configure all services for gw-b
-  block:
+- name: Debug client_name variable
+  ansible.builtin.debug:
+    var: client_name
 
-    - name: Debug client_name variable
-      debug:
-        var: client_name
+- name: Include observium role
+  ansible.builtin.include_role:
+    # 'playbook_dir' is the absolute path to the directory containing the playbook
+    # which is /root/gw-ec2-module/ansible/playbooks
+    # From there, we go up one level to 'ansible/' and then down to 'common/observium'
+    name: "{{ playbook_dir }}/../common/observium"
 
-
-    - name: Include observium role
-      ansible.builtin.include_role:
-        name: ../../../../common/observium
-
-    - name: Include smtp role
-      ansible.builtin.include_role:
-        name: ../../../../common/smtp
+- name: Include smtp role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/smtp"

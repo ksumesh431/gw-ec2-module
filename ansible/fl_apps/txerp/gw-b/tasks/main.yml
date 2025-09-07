@@ -4,14 +4,13 @@
   ansible.builtin.debug:
     # Reference the variable from the dictionary we created in pre_tasks
     var: final_vars.client_name
-    
+
 - name: Include observium role
   ansible.builtin.include_role:
-    # 'playbook_dir' is the absolute path to the directory containing the playbook
-    # which is /root/gw-ec2-module/ansible/playbooks
-    # From there, we go up one level to 'ansible/' and then down to 'common/observium'
     name: "{{ playbook_dir }}/../common/observium"
 
 - name: Include smtp role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/smtp"
+    vars:
+      client_name: "{{ final_vars.client_name }}"  # Pass the client_name variable to the smtp role

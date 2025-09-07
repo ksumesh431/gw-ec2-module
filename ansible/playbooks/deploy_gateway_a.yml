@@ -1,0 +1,30 @@
+# playbooks/deploy_gateway_b.yml
+---
+- name: Deploy and Configure Gateway A
+  hosts: localhost
+  connection: local
+  become: true
+
+  pre_tasks:
+    - name: Fail if client_id is not provided on the command line
+      ansible.builtin.fail:
+        msg: "Please provide a client_id, e.g., -e 'client_id=arlitx'"
+      when: client_id is not defined
+
+    - name: Load the central variables file
+      ansible.builtin.include_vars:
+        file: ../../env_vars.yml # Path from playbook to the project root's file
+        name: env_config
+
+    - name: Validate that the client_id exists in the config file
+      ansible.builtin.fail:
+        msg: "Client ID '{{ client_id }}' was not found in env_vars.yml"
+      when: client_id not in env_config.clients
+
+    - name: Merge default and client-specific variables
+      ansible.builtin.set_fact:
+        # This is the core logic. It merges the two dictionaries.
+        # The client_vars (second argument) will overwrite any conflicting keys from the defaults.
+        final_vars: "{{ env_config.defaults.ansible_vars | combine(env_config.clients[client_id].ansible_vars, recursive=True) }}"
+  roles:
+    - role: ../fl_apps/txerp/gw-b

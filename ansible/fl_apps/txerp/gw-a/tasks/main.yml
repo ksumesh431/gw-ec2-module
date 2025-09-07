@@ -1,14 +1,11 @@
+# ansible/fl_apps/txerp/gw-b/tasks/main.yml
 ---
-- name: Configure all services for gw-a
-  hosts: all
-  become: true
-  # vars:
-    # ansible_python_interpreter: /usr/bin/python3
-    # Override variables if needed
-    # client_name: "arlitx" # Can be overridden for specific client (Used for fetching stunnel certificate and configuration)
+- name: Debug client_name variable
+  ansible.builtin.debug:
+    # Reference the variable from the dictionary we created in pre_tasks
+    var: final_vars.client_name
 
-  tasks:
+- name: Include stunnel role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/stunnel"
 
-    - name: Include stunnel role
-      ansible.builtin.include_role:
-        name: ../../../../common/stunnel

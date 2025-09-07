@@ -1,10 +1,11 @@
 # playbooks/deploy_gateway_b.yml
 ---
 - name: Deploy and Configure Gateway B
-  hosts: localhost         # We define the host here
-  connection: local      # And the connection type here
-  become: true           # Privilege escalation is defined here
+  hosts: localhost # We define the host here
+  connection: local # And the connection type here
+  become: true # Privilege escalation is defined here
 
   tasks:
     - name: Include gw-b configuration tasks
-      include_role: ../fl_apps/txerp/gw-b
+      include_role:
+        name: ../fl_apps/txerp/gw-b

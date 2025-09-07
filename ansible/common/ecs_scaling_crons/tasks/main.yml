@@ -4,27 +4,27 @@
 - name: Display current AWS region from instance metadata
   debug:
     msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
-
 # -------------------------------
-# Step 1: Create Python venv at /ecs
+# Step 1: Create Python venv at /root/ecs
 # -------------------------------
-- name: Ensure python3 installed (Amazon Linux 2023)
+- name: Ensure python3 and venv are installed (Amazon Linux 2023)
   ansible.builtin.yum:
     name:
       - python3
+      - python3-venv
     state: present
 
-- name: Create Python virtual environment at /ecs
-  ansible.builtin.command: python3 -m venv /ecs
+- name: Create Python virtual environment at /root/ecs
+  ansible.builtin.command: python3 -m venv /root/ecs
   args:
-    creates: /ecs/bin/python3
+    creates: /root/ecs/bin/python3
 
 # -------------------------------
 # Step 2: Create directory for cron scripts
 # -------------------------------
-- name: Create directory /ecs_scaling_crons
+- name: Create directory /root/ecs_scaling_crons
   ansible.builtin.file:
-    path: /ecs_scaling_crons
+    path: /root/ecs_scaling_crons
     state: directory
     mode: "0755"
 
@@ -64,10 +64,10 @@
     msg: "File /home/proot/scaling_ecs_Services.py not found on instance {{ final_vars.old_gw_b_instnace_id }}"
   when: scaling_ecs_output.stdout == ""
 
-- name: Copy scaling_ecs_Services.py to /ecs_scaling_crons
+- name: Copy scaling_ecs_Services.py to /root/ecs_scaling_crons
   ansible.builtin.copy:
     content: "{{ scaling_ecs_output.stdout }}"
-    dest: /ecs_scaling_crons/scaling_ecs_Services.py
+    dest: /root/ecs_scaling_crons/scaling_ecs_Services.py
     mode: "0755"
   when: scaling_ecs_output.stdout != ""
 
@@ -107,20 +107,20 @@
     msg: "File /home/proot/auto_scaling_group_update.py not found on instance {{ final_vars.old_gw_b_instnace_id }}"
   when: asg_update_output.stdout == ""
 
-- name: Copy auto_scaling_group_update.py to /ecs_scaling_crons
+- name: Copy auto_scaling_group_update.py to /root/ecs_scaling_crons
   ansible.builtin.copy:
     content: "{{ asg_update_output.stdout }}"
-    dest: /ecs_scaling_crons/auto_scaling_group_update.py
+    dest: /root/ecs_scaling_crons/auto_scaling_group_update.py
     mode: "0755"
   when: asg_update_output.stdout != ""
 
 # -------------------------------
-# Step 5: Setup Cron Jobs (using /ecs/bin/python3)
+# Step 5: Setup Cron Jobs (using /root/ecs/bin/python3)
 # -------------------------------
 - name: Morning ecs cronjob
   ansible.builtin.cron:
     name: "Morning ecs cronjob"
-    job: "/ecs/bin/python3 /ecs_scaling_crons/scaling_ecs_Services.py >> /var/log/ecs_scaling.logs"
+    job: "/root/ecs/bin/python3 /root/ecs_scaling_crons/scaling_ecs_Services.py >> /var/log/ecs_scaling.logs"
     minute: "50"
     hour: "6"
     weekday: "1-5"
@@ -128,7 +128,7 @@
 - name: Morning Auto-Scaling cronjob
   ansible.builtin.cron:
     name: "Morning Auto-Scaling cronjob"
-    job: "/ecs/bin/python3 /ecs_scaling_crons/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
+    job: "/root/ecs/bin/python3 /root/ecs_scaling_crons/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
     minute: "45"
     hour: "6"
     weekday: "1-5"
@@ -136,7 +136,7 @@
 - name: Night ecs cronjob
   ansible.builtin.cron:
     name: "Night ecs cronjob"
-    job: "/ecs/bin/python3 /ecs_scaling_crons/scaling_ecs_Services.py >> /var/log/ecs_scaling.logs"
+    job: "/root/ecs/bin/python3 /root/ecs_scaling_crons/scaling_ecs_Services.py >> /var/log/ecs_scaling.logs"
     minute: "0"
     hour: "19"
     weekday: "1-5"
@@ -144,7 +144,7 @@
 - name: Night Autoscaling ecs cronjob
   ansible.builtin.cron:
     name: "Night Autoscaling ecs cronjob"
-    job: "sudo /ecs/bin/python3 /ecs_scaling_crons/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
+    job: "sudo /root/ecs/bin/python3 /root/ecs_scaling_crons/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
     minute: "15"
     hour: "19"
     weekday: "5"
@@ -152,7 +152,7 @@
 - name: Night Auto-Scaling job
   ansible.builtin.cron:
     name: "Night Auto-Scaling job"
-    job: "/ecs/bin/python3 /ecs_scaling_crons/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
+    job: "/root/ecs/bin/python3 /root/ecs_scaling_crons/auto_scaling_group_update.py >> /var/log/ecs_scaling.logs"
     minute: "10"
     hour: "19"
     weekday: "1-5"

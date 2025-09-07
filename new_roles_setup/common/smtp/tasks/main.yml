@@ -194,14 +194,14 @@
     #   set_fact:
     #     domain: "{{ (ses_output_us_east_2.stdout | from_json).Identities[0] if 'Identities' in (ses_output_us_east_2.stdout | from_json) and (ses_output_us_east_2.stdout | from_json).Identities else (ses_output_us_east_1.stdout | from_json).Identities[0] if 'Identities' in (ses_output_us_east_1.stdout | from_json) and (ses_output_us_east_1.stdout | from_json).Identities else '' }}"
 
-    # This task now handles the undefined variable problem gracefully
     - name: Combine identity lists from both regions
       set_fact:
-        # Create a list of all identities from us-east-2
-        all_identities: "{{ (ses_output_us_east_2.stdout | from_json).Identities | default([])
-          +
-          # Add the list from us-east-1. If the task was skipped, default to an empty list.
-          (ses_output_us_east_1.stdout | from_json).Identities | default([]) }}"
+        all_identities: >-
+          {{
+            (ses_output_us_east_2.stdout | from_json).Identities | default([])
+            +
+            (ses_output_us_east_1.stdout | from_json).Identities | default([])
+          }}
 
     - name: Set domain variable if any identities were found
       set_fact:

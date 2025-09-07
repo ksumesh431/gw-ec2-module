@@ -5,7 +5,5 @@
   connection: local # And the connection type here
   become: true # Privilege escalation is defined here
 
-  tasks:
-    - name: Include gw-b configuration tasks
-      include_role:
-        name: ../fl_apps/txerp/gw-b
+  roles:
+    - role: ../fl_apps/txerp/gw-b

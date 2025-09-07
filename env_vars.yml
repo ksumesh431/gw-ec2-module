@@ -1,8 +1,6 @@
 defaults:
   ansible_vars:
     ansible_python_interpreter: /usr/bin/python3
-    hosts: localhost
-    ansible_connection: local
   terraform_vars:
 
 clients:

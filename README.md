@@ -45,7 +45,7 @@ All Terraform commands are executed via the helper script [`run-tf.sh`](./run-tf
 
 ### Usage
 ```bash
-╰─  ./run-tf.sh <terraform_command> <client_id> [extra_args]
+ ./run-tf.sh <terraform_command> <client_id> [extra_args]
 ```
 - `<terraform_command>`: Any Terraform command (e.g., `plan`, `apply`, `destroy`)
 - `<client_id>`: The client key as defined in `env_vars.yml` (e.g., `arlitx`)
@@ -53,7 +53,7 @@ All Terraform commands are executed via the helper script [`run-tf.sh`](./run-tf
 
 #### Example
 ```bash
-╰─  ./run-tf.sh plan arlitx
+ ./run-tf.sh plan arlitx
 ```
 
 ---

@@ -8,4 +8,6 @@
 - name: Include stunnel role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/stunnel"
+  vars:
+    client_name: "{{ final_vars.client_name }}"
 

@@ -7,4 +7,3 @@ proot_user: "proot"
 ssm_parameter_name: "proot-user"
 # client_name: "whcopa"  # Default client name
 stunnel_cert_param: "/{{ client_name }}/pd/stunnel/cert"
-stunnel_conf_param: "/{{ client_name }}/pd/stunnel/conf"

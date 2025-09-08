@@ -9,6 +9,7 @@ stunnel_cert_param: "/{{ client_name }}/pd/stunnel/cert"
 stunnel_log_dir: /var/log/stunnel
 stunnel_log_file: /var/log/stunnel/stunnel.log
 stunnel_pid: /run/stunnel/stunnel.pid
-
 stunnel_user: stunnel
 stunnel_group: stunnel
+# stunnel_output_dir: "{{ playbook_dir }}/../../config_files_output/stunnel" # Not using this as it has git coonflicts on future pull
+stunnel_output_dir: "/tmp/{{ client_name }}.stunnel.conf"

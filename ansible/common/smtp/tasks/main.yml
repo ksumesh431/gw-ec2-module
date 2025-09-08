@@ -45,8 +45,8 @@
         var: old_gw_b_server_ip
 
     - name: Wait for 15 seconds to ensure boto3 and dependencies are loaded
-      ansible.builtin.wait_for:
-      timeout: 15
+      ansible.builtin.pause:
+        seconds: 15
 
 - name: Postfix Initial Setup
   block:

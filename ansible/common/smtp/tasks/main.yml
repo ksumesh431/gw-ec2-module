@@ -44,6 +44,10 @@
       debug:
         var: old_gw_b_server_ip
 
+    - name: Wait for 5 seconds to ensure boto3 and dependencies are loaded
+      ansible.builtin.wait_for:
+      timeout: 5
+
 - name: Postfix Initial Setup
   block:
     - name: Install postfix, rsync and nc packages for email delivery setup

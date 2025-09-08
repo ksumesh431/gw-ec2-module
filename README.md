@@ -132,7 +132,3 @@ To execute Ansible playbooks for a specific client:
 ---
 
 > **Tip:** Ensure your `client_id` matches a key defined in `env_vars.yml`.
-
----
-
-**For any questions or contributions, please refer to the repository guidelines.**

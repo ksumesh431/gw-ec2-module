@@ -1,9 +1,9 @@
-- name: Collect AWS EC2 instance metadata for configuration
-  amazon.aws.ec2_metadata_facts:
+# - name: Collect AWS EC2 instance metadata for configuration
+#   amazon.aws.ec2_metadata_facts:
 
-- name: Display current AWS region from instance metadata
-  debug:
-    msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+# - name: Display current AWS region from instance metadata
+#   debug:
+#     msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
 # -------------------------------
 # Step 1: Create Python venv at /root/ecs
 # -------------------------------
@@ -28,90 +28,22 @@
     mode: "0755"
 
 # -------------------------------
-# Step 3: Fetch scaling_ecs_Services.py
+# Step 3: Copy scaling_ecs_Services.py (from files/)
 # -------------------------------
-- name: Retrieve scaling_ecs_Services.py from old EC2 instance
-  ansible.builtin.shell: |
-    aws ssm send-command \
-      --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
-      --document-name "AWS-RunShellScript" \
-      --parameters 'commands=["cat /home/proot/scaling_ecs_Services.py"]' \
-      --region "{{ ansible_ec2_instance_identity_document_region }}" \
-      --output text \
-      --query 'Command.CommandId'
-  register: scaling_ecs_cmd_id
-
-- name: Wait for 3 seconds before fetching scaling_ecs_Services.py output
-  ansible.builtin.wait_for:
-    timeout: 3
-
-- name: Get scaling_ecs_Services.py content
-  ansible.builtin.shell: |
-    aws ssm get-command-invocation \
-      --command-id "{{ scaling_ecs_cmd_id.stdout }}" \
-      --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
-      --region "{{ ansible_ec2_instance_identity_document_region }}" \
-      --output text \
-      --query 'StandardOutputContent'
-  register: scaling_ecs_output
-  retries: 10
-  delay: 2
-  until: scaling_ecs_output.rc == 0
-
-- name: Debug if scaling_ecs_Services.py not found
-  ansible.builtin.debug:
-    msg: "File /home/proot/scaling_ecs_Services.py not found on instance {{ final_vars.old_gw_b_instnace_id }}"
-  when: scaling_ecs_output.stdout == ""
-
 - name: Copy scaling_ecs_Services.py to /root/ecs_scaling_crons
   ansible.builtin.copy:
-    content: "{{ scaling_ecs_output.stdout }}"
+    src: files/scaling_ecs_Services.py
     dest: /root/ecs_scaling_crons/scaling_ecs_Services.py
     mode: "0755"
-  when: scaling_ecs_output.stdout != ""
 
 # -------------------------------
-# Step 4: Fetch auto_scaling_group_update.py
+# Step 4: Copy auto_scaling_group_update.py (from files/)
 # -------------------------------
-- name: Retrieve auto_scaling_group_update.py from old EC2 instance
-  ansible.builtin.shell: |
-    aws ssm send-command \
-      --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
-      --document-name "AWS-RunShellScript" \
-      --parameters 'commands=["cat /home/proot/auto_scaling_group_update.py"]' \
-      --region "{{ ansible_ec2_instance_identity_document_region }}" \
-      --output text \
-      --query 'Command.CommandId'
-  register: asg_update_cmd_id
-
-- name: Wait for 3 seconds before fetching auto_scaling_group_update.py output
-  ansible.builtin.wait_for:
-    timeout: 3
-
-- name: Get auto_scaling_group_update.py content
-  ansible.builtin.shell: |
-    aws ssm get-command-invocation \
-      --command-id "{{ asg_update_cmd_id.stdout }}" \
-      --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
-      --region "{{ ansible_ec2_instance_identity_document_region }}" \
-      --output text \
-      --query 'StandardOutputContent'
-  register: asg_update_output
-  retries: 10
-  delay: 2
-  until: asg_update_output.rc == 0
-
-- name: Debug if auto_scaling_group_update.py not found
-  ansible.builtin.debug:
-    msg: "File /home/proot/auto_scaling_group_update.py not found on instance {{ final_vars.old_gw_b_instnace_id }}"
-  when: asg_update_output.stdout == ""
-
 - name: Copy auto_scaling_group_update.py to /root/ecs_scaling_crons
   ansible.builtin.copy:
-    content: "{{ asg_update_output.stdout }}"
+    src: files/auto_scaling_group_update.py
     dest: /root/ecs_scaling_crons/auto_scaling_group_update.py
     mode: "0755"
-  when: asg_update_output.stdout != ""
 
 # -------------------------------
 # Step 5: Setup Cron Jobs (using /root/ecs/bin/python3)
@@ -164,7 +96,6 @@
     hour: "13"
     weekday: "6"
 
-
 # -------------------------------
 # Step 6: Install pip inside venv
 # -------------------------------
@@ -180,7 +111,7 @@
   ansible.builtin.file:
     path: /root/automation/scripts
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 # -------------------------------
 # Step 8: Copy tomcat-container-logs-archival_to_s3.py
@@ -189,7 +120,7 @@
   ansible.builtin.copy:
     src: files/tomcat-container-logs-archival_to_s3.py
     dest: /root/automation/scripts/tomcat-container-logs-archival_to_s3.py
-    mode: '0755'
+    mode: "0755"
 
 # -------------------------------
 # Step 9: Setup cron job for tomcat-container-logs-archival_to_s3.py

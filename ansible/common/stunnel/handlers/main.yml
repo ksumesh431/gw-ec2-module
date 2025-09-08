@@ -8,4 +8,8 @@
   ansible.builtin.service:
     name: "{{ stunnel_service }}"
     state: restarted
+  register: stunnel_restart_result
+  retries: 3
+  delay: 5
+  until: stunnel_restart_result is succeeded
   listen: restart stunnel

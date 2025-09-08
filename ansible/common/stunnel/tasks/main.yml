@@ -236,10 +236,18 @@
     stunnel_dir_path: "{{ '/etc/stunnel' if stunnel_dir.stat.exists else '/etc/stunnel5' }}"
     stunnel_service: "{{ 'stunnel' if stunnel_dir.stat.exists else 'stunnel5' }}"
 
+- name: Wait for 5 seconds before continuing
+  ansible.builtin.wait_for:
+    timeout: 5
+
 # Cert from SSM
 - name: Retrieve stunnel certificate from SSM
   ansible.builtin.set_fact:
     stunnel_cert: "{{ lookup('amazon.aws.ssm_parameter', stunnel_cert_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
+  register: stunnel_cert_result
+  retries: 3
+  delay: 2
+  until: stunnel_cert_result is succeeded
 
 - name: Deploy stunnel SSL certificate from SSM parameter
   ansible.builtin.copy:

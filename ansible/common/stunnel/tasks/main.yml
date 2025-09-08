@@ -36,6 +36,30 @@
         name: stunnel
         state: present
 
+
+    - name: Ensure stunnel group exists
+      ansible.builtin.group:
+          name: stunnel
+          system: true
+          state: present
+
+    - name: Ensure stunnel user exists
+      ansible.builtin.user:
+          name: stunnel
+          group: stunnel
+          system: true
+          shell: /sbin/nologin
+          state: present
+
+    - name: Ensure /var/log/stunnel directory exists
+      ansible.builtin.file:
+          path: /var/log/stunnel
+          state: directory
+          owner: stunnel
+          group: stunnel
+          mode: "0750"
+
+
     - name: Ensure log directory exists
       ansible.builtin.file:
         path: "{{ stunnel_log_dir }}"

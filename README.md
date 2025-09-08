@@ -1,24 +1,22 @@
-# 📝 Prerequisites
+# Project Overview & Usage Guide
 
-Before running any Terraform commands with this project, ensure the following tools are installed on your system:
+## Prerequisites
+
+Before using this project, please ensure the following tools are installed on your system:
 
 - [Terraform](https://www.terraform.io/downloads.html)
-- [yq](https://github.com/mikefarah/yq) (**Go version by mikefarah, required for env var processing**)
-
-# Environment Variables & Multi-Client Automation Guide
-
-Welcome! This project is designed for seamless infrastructure and configuration management across multiple clients using **Terraform** and **Ansible**. This guide explains how environment variables are managed and how to run commands for different clients.
+- [yq](https://github.com/mikefarah/yq) (Go version by mikefarah, required for environment variable processing)
 
 ---
 
-## 🌎 Environment Variables Setup
+## Environment Variable Management
 
-All environment variables for Terraform and Ansible are managed centrally in [`env_vars.yml`](./env_vars.yml). This YAML file contains:
+All environment variables for Terraform and Ansible are centrally managed in [`env_vars.yml`](./env_vars.yml). This file is structured as follows:
 
-- **defaults**: Shared variables for all clients.
-- **clients**: Client-specific overrides for both Terraform and Ansible.
+- **defaults**: Shared variables applied to all clients
+- **clients**: Client-specific overrides for both Terraform and Ansible
 
-### Example Structure
+**Example Structure:**
 
 ```yaml
 defaults:
@@ -39,34 +37,41 @@ clients:
     terraform_vars:
 ```
 
-- **To add a new client**: Copy the structure under `arlitx` and update the values as needed.
-- **Variables are merged**: Defaults are merged with client-specific values automatically when running commands.
+**To add a new client:**
+
+- Duplicate the structure under `arlitx` and update the values as required.
+
+**Variable Merging:**
+
+- Default values are automatically merged with client-specific overrides when running commands.
 
 ---
 
-## 🚀 Running Terraform Commands
+## Terraform Workflow
 
-All Terraform commands are executed via the helper script [`run-tf.sh`](./run-tf.sh), which:
+All Terraform operations are managed via the [`run-tf.sh`](./run-tf.sh) helper script. This script:
 
-- Merges the correct environment variables for your chosen client.
-- Writes them to `terraform/generated.auto.tfvars.json`.
-- Handles S3 backend configuration for state files (see below).
-- Runs the desired Terraform command in the `terraform/` directory.
+- Merges and applies the appropriate environment variables for the selected client
+- Writes variables to `terraform/generated.auto.tfvars.json`
+- Configures the S3 backend for state file management
+- Executes the specified Terraform command within the `terraform/` directory
 
 ### S3 State File Bucket Requirement
 
-> **Important:**
+Each client **must** define an S3 bucket for the Terraform state file in their `terraform_vars` section of [`env_vars.yml`](./env_vars.yml):
+
+```yaml
+clients:
+  arlitx:
+    terraform_vars:
+      bucket: your-s3-bucket-name
+      # ...other vars...
+```
+
+> **Note:**
 >
-> - Each client **must** specify an S3 bucket for the Terraform state file in their `terraform_vars` section in [`env_vars.yml`](./env_vars.yml):
->   ```yaml
->   clients:
->     arlitx:
->       terraform_vars:
->         bucket: your-s3-bucket-name
->         # ...other vars...
->   ```
-> - **You must create this S3 bucket manually in AWS before running `init` for the first time.**
-> - The script will check for the bucket variable and fail with a clear error if it is missing.
+> - The S3 bucket must be created manually in AWS before running `init` for the first time.
+> - The script will validate the presence of the `bucket` variable and provide a clear error if it is missing.
 
 ### Usage
 
@@ -74,13 +79,13 @@ All Terraform commands are executed via the helper script [`run-tf.sh`](./run-tf
 ./run-tf.sh <init|plan|apply|destroy|...> <client_id> [additional_args...]
 ```
 
-- `<terraform_command>`: Any Terraform command (e.g., `init`, `plan`, `apply`, `destroy`)
+- `<terraform_command>`: Any valid Terraform command (e.g., `init`, `plan`, `apply`, `destroy`)
 - `<client_id>`: The client key as defined in `env_vars.yml` (e.g., `arlitx`)
-- `[additional_args...]`: Any additional arguments for Terraform (e.g., `-reconfigure` for `init`)
+- `[additional_args...]`: Optional additional arguments for Terraform (e.g., `-reconfigure` for `init`)
 
-#### Examples
+**Examples:**
 
-Initialize with backend config (bucket must exist):
+Initialize with backend configuration (bucket must exist):
 
 ```bash
 ./run-tf.sh init arlitx
@@ -98,37 +103,36 @@ Destroy for a client:
 ./run-tf.sh destroy arlitx
 ```
 
-> The script will automatically detect if the backend S3 bucket has changed and add the `-reconfigure` flag to `terraform init` if needed. You can also pass `-reconfigure` manually as an extra argument.
+> The script will automatically detect changes to the backend S3 bucket and add the `-reconfigure` flag to `terraform init` if necessary. You may also pass `-reconfigure` manually as an extra argument.
 
 ---
 
-## 🛠️ Running Ansible Playbooks
+## Ansible Playbook Execution
 
-To run Ansible playbooks for a specific client:
+To execute Ansible playbooks for a specific client:
 
-1. **Change directory** to the `ansible/` folder:
+1. Navigate to the `ansible/` directory:
    ```bash
    cd ansible
    ```
-2. **Run the playbook** with the required variables:
+2. Run the desired playbook, specifying the client ID:
    ```bash
-   ansible-playbook -i localhost, playbooks/deploy_gateway_b.yml   -e "client_id=arlitx"
+   ansible-playbook -i localhost, playbooks/deploy_gateway_b.yml -e "client_id=arlitx"
    ```
-   - Replace `gw-b` and the playbook path as needed for your use case.
-   - Change `client_id=arlitx` to your target client.
+   - Adjust the playbook path and `client_id` as appropriate for your use case.
 
 ---
 
-## 📚 References
+## Reference Files
 
-- [`env_vars.yml`](./env_vars.yml): All environment variables and client configs
-- [`run-tf.sh`](./run-tf.sh): Script for running Terraform with correct variables
-- [`ansible/`](./ansible/): Ansible playbooks and roles
-
----
-
-> **Tip:** Always ensure your `client_id` matches a key in `env_vars.yml`.
+- [`env_vars.yml`](./env_vars.yml): Centralized environment variable and client configuration
+- [`run-tf.sh`](./run-tf.sh): Script for executing Terraform with the correct variables
+- [`ansible/`](./ansible/): Ansible playbooks and supporting roles
 
 ---
 
-**Happy automating!**
+> **Tip:** Ensure your `client_id` matches a key defined in `env_vars.yml`.
+
+---
+
+**For any questions or contributions, please refer to the repository guidelines.**

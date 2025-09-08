@@ -1,3 +1,10 @@
+# 📝 Prerequisites
+
+Before running any Terraform commands with this project, ensure the following tools are installed on your system:
+
+- [Terraform](https://www.terraform.io/downloads.html)
+- [yq](https://github.com/mikefarah/yq) (**Go version by mikefarah, required for env var processing**)
+
 # Environment Variables & Multi-Client Automation Guide
 
 Welcome! This project is designed for seamless infrastructure and configuration management across multiple clients using **Terraform** and **Ansible**. This guide explains how environment variables are managed and how to run commands for different clients.

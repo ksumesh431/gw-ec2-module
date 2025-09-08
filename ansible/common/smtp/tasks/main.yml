@@ -38,9 +38,22 @@
           - nc
         state: present
 
-    - name: Retrieve proot user password from SSM
+    - name: Retrieve proot user password from SSM using AWS CLI
+      ansible.builtin.shell: |
+        aws ssm get-parameter \
+          --name "{{ ssm_parameter_name }}" \
+          --with-decryption \
+          --region "{{ ansible_ec2_instance_identity_document_region }}" \
+          --query 'Parameter.Value' \
+          --output text
+        register: proot_password_result
+        retries: 5
+        delay: 5
+        until: proot_password_result.rc == 0
+
+    - name: Set proot_password fact from SSM result
       set_fact:
-        proot_password: "{{ lookup('amazon.aws.ssm_parameter', ssm_parameter_name, region=ansible_ec2_instance_identity_document_region) }}"
+        proot_password: "{{ proot_password_result.stdout }}"
 
     - name: Create modified proot password
       set_fact:

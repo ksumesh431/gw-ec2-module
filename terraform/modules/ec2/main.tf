@@ -62,11 +62,11 @@ resource "aws_instance" "ec2" {
   tags = {
     Email            = "SMTP"
     Application      = "EC2"
-    ClientName       = var.tag_client_name
+    ClientName       = lower(var.tag_client_name)
     Environment      = "aws_prod"
     FrontlineProduct = "erp_teams"
     LogicalName      = var.tag_logical_name
-    Name             = "${var.tag_name}-v2"
+    Name             = lower("${var.tag_name}-v2")
     Owner            = "DIST_Technology_SaaSIO_SRE_Team_Cask@frontlineed.com"
     Role             = var.tag_role
     State            = var.tag_state

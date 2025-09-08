@@ -70,20 +70,23 @@
 #   when: stunnel_cert is not defined or stunnel_cert | length == 0
 
 
-- name: Retrieve stunnel certificate from SSM with retries
-  amazon.aws.aws_ssm:
-    name: "{{ stunnel_cert_param }}"
-    decrypt: true
-    region: "{{ ansible_ec2_instance_identity_document_region }}"
-  register: stunnel_cert_raw
+- name: Retrieve stunnel certificate from SSM using AWS CLI
+  ansible.builtin.shell: |
+    aws ssm get-parameter \
+      --name "{{ stunnel_cert_param }}" \
+      --with-decryption \
+      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --query 'Parameter.Value' \
+      --output text
+  register: stunnel_cert_result
   retries: 5
   delay: 5
-  until: stunnel_cert_raw is succeeded
+  until: stunnel_cert_result.rc == 0
 
 - name: Set stunnel certificate fact
   ansible.builtin.set_fact:
-    stunnel_cert: "{{ stunnel_cert_raw.parameter_value }}"
-    
+    stunnel_cert: "{{ stunnel_cert_result.stdout }}"
+
 - name: Deploy stunnel SSL certificate from SSM parameter
   ansible.builtin.copy:
     content: "{{ stunnel_cert }}"

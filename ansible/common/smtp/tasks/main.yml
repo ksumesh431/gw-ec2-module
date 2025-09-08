@@ -1,6 +1,13 @@
 ---
 - name: AWS and System Setup
   block:
+    - name: Collect AWS EC2 instance metadata for configuration
+      amazon.aws.ec2_metadata_facts:
+
+    - name: Display current AWS region from instance metadata
+      debug:
+        msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+
     - name: Install AWS boto3 Python SDK for AWS interactions
       ansible.builtin.pip:
         name: boto3
@@ -15,7 +22,6 @@
 
     - name: Clear Ansible's Python module cache
       ansible.builtin.meta: clear_facts
-
 
     - name: Validate boto3 installation and availability
       ansible.builtin.command:
@@ -96,7 +102,7 @@
         state: directory
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
 - name: Postfix Configuration File Transfer
   block:
@@ -171,7 +177,7 @@
     - name: Set permissions of /etc/postfix directory to 744
       ansible.builtin.file:
         path: /etc/postfix
-        mode: '0744'
+        mode: "0744"
 
     - name: Ensure postfix service is enabled and running
       ansible.builtin.service:

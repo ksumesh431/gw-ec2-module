@@ -55,21 +55,19 @@
     stunnel_dir_path: "{{ '/etc/stunnel' if stunnel_dir.stat.exists else '/etc/stunnel5' }}"
     stunnel_service: "{{ 'stunnel' if stunnel_dir.stat.exists else 'stunnel5' }}"
 
-# Cert from SSM with block, error handling, and retry
-- name: Retrieve stunnel certificate from SSM with retries and error handling
-  block:
-    - name: Attempt to retrieve stunnel certificate from SSM
-      ansible.builtin.set_fact:
-        stunnel_cert: "{{ lookup('amazon.aws.ssm_parameter', stunnel_cert_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
-      register: stunnel_cert_result
-      failed_when: stunnel_cert_result.stunnel_cert is not defined or stunnel_cert_result.stunnel_cert | length == 0
-  rescue:
-    - name: Wait before retrying SSM certificate retrieval
-      ansible.builtin.wait_for:
-        timeout: 5
+- name: Retrieve stunnel certificate from SSM with retries
+  ansible.builtin.set_fact:
+    stunnel_cert: "{{ lookup('amazon.aws.ssm_parameter', stunnel_cert_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
   retries: 5
   delay: 5
   until: stunnel_cert is defined and stunnel_cert | length > 0
+  register: stunnel_cert_result
+  failed_when: false
+
+- name: Verify certificate was retrieved successfully
+  ansible.builtin.fail:
+    msg: "Failed to retrieve stunnel certificate from SSM parameter {{ stunnel_cert_param }} after 5 retries"
+  when: stunnel_cert is not defined or stunnel_cert | length == 0
 
 - name: Deploy stunnel SSL certificate from SSM parameter
   ansible.builtin.copy:

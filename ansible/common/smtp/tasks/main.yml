@@ -46,7 +46,7 @@
 
     - name: Wait for 5 seconds to ensure boto3 and dependencies are loaded
       ansible.builtin.wait_for:
-      timeout: 5
+      timeout: 15
 
 - name: Postfix Initial Setup
   block:

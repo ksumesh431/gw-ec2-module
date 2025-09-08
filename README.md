@@ -73,8 +73,7 @@ To run Ansible playbooks for a specific client:
    ```
 2. **Run the playbook** with the required variables:
    ```bash
-   ansible-playbook -i localhost, fl_apps/txerp/gw-b/tasks/main.yml \
-     -e "hosts=localhost ansible_connection=local client_id=arlitx"
+   ansible-playbook -i localhost, playbooks/deploy_gateway_b.yml   -e "client_id=arlitx""
    ```
    - Replace `gw-b` and the playbook path as needed for your use case.
    - Change `client_id=arlitx` to your target client.

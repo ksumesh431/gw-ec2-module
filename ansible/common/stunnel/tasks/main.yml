@@ -28,12 +28,12 @@
   ansible.builtin.debug:
     msg: "{{ boto3_check.stdout }}"
 
-- name: Collect AWS EC2 instance metadata for configuration
-  amazon.aws.ec2_metadata_facts:
+# - name: Collect AWS EC2 instance metadata for configuration
+#   amazon.aws.ec2_metadata_facts:
 
-- name: Display current AWS region from instance metadata
-  ansible.builtin.debug:
-    msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+# - name: Display current AWS region from instance metadata
+#   ansible.builtin.debug:
+#     msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
 
 - name: Install utilities
   ansible.builtin.dnf:

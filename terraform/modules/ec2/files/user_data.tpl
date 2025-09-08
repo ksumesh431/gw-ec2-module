@@ -12,8 +12,6 @@ dnf install -y python3-pip
 # Install ansible 
 dnf install -y ansible
 
-
-
 # Install cron
 dnf install -y cronie cronie-anacron
 

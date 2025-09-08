@@ -5,6 +5,12 @@
     # Reference the variable from the dictionary we created in pre_tasks
     var: final_vars.client_name
 
+- name: Set hostname using hostnamectl
+  ansible.builtin.command:
+    cmd: hostnamectl set-hostname "{{ final_vars.client_name }}-gw-b-v2"
+  become: true
+
+
 - name: Include ecs_scaling_crons role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/ecs_scaling_crons"

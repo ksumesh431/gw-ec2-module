@@ -43,23 +43,55 @@ All Terraform commands are executed via the helper script [`run-tf.sh`](./run-tf
 
 - Merges the correct environment variables for your chosen client.
 - Writes them to `terraform/generated.auto.tfvars.json`.
+- Handles S3 backend configuration for state files (see below).
 - Runs the desired Terraform command in the `terraform/` directory.
+
+### S3 State File Bucket Requirement
+
+> **Important:**
+>
+> - Each client **must** specify an S3 bucket for the Terraform state file in their `terraform_vars` section in [`env_vars.yml`](./env_vars.yml):
+>   ```yaml
+>   clients:
+>     arlitx:
+>       terraform_vars:
+>         bucket: your-s3-bucket-name
+>         # ...other vars...
+>   ```
+> - **You must create this S3 bucket manually in AWS before running `init` for the first time.**
+> - The script will check for the bucket variable and fail with a clear error if it is missing.
 
 ### Usage
 
 ```bash
- ./run-tf.sh <terraform_command> <client_id> [extra_args]
+./run-tf.sh <init|plan|apply|destroy|...> <client_id> [additional_args...]
 ```
 
-- `<terraform_command>`: Any Terraform command (e.g., `plan`, `apply`, `destroy`)
+- `<terraform_command>`: Any Terraform command (e.g., `init`, `plan`, `apply`, `destroy`)
 - `<client_id>`: The client key as defined in `env_vars.yml` (e.g., `arlitx`)
-- `[extra_args]`: Any additional arguments for Terraform
+- `[additional_args...]`: Any additional arguments for Terraform (e.g., `-reconfigure` for `init`)
 
-#### Example
+#### Examples
+
+Initialize with backend config (bucket must exist):
 
 ```bash
- ./run-tf.sh plan arlitx
+./run-tf.sh init arlitx
 ```
+
+Plan for a client:
+
+```bash
+./run-tf.sh plan arlitx
+```
+
+Destroy for a client:
+
+```bash
+./run-tf.sh destroy arlitx
+```
+
+> The script will automatically detect if the backend S3 bucket has changed and add the `-reconfigure` flag to `terraform init` if needed. You can also pass `-reconfigure` manually as an extra argument.
 
 ---
 

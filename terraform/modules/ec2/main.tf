@@ -45,6 +45,7 @@ resource "aws_instance" "ec2" {
   ebs_optimized          = false
   vpc_security_group_ids = [data.aws_security_group.edge_sg.id]
   source_dest_check      = true
+  user_data = "${path.module}/files/user_data.tpl"
   # user_data = templatefile("${path.module}/files/user_data.tpl", {
   #   ansible_playbook = templatefile(
   #     "${path.module}/files/ansible/${var.tag_logical_name == "GatewayAServer" ? "ansible_playbook_gw_a.tpl" : "ansible_playbook_gw_b.tpl"}",

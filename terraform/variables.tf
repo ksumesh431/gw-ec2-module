@@ -62,3 +62,9 @@ variable "old_gw_b_instance_id" {
   description = "The instance ID of the old Gateway B server"
   type        = string
 }
+
+variable "bucket" {
+  description = "The S3 bucket to use for the Terraform state"
+  type        = string
+  default     = ""
+}

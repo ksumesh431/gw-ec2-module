@@ -5,5 +5,10 @@ s3_bucket: "ferp-build"
 s3_path: "crowdstrike"
 proot_user: "proot"
 ssm_parameter_name: "proot-user"
-# client_name: "whcopa"  # Default client name
 stunnel_cert_param: "/{{ client_name }}/pd/stunnel/cert"
+stunnel_log_dir: /var/log/stunnel
+stunnel_log_file: /var/log/stunnel/stunnel.log
+stunnel_pid: /run/stunnel/stunnel.pid
+
+stunnel_user: stunnel
+stunnel_group: stunnel

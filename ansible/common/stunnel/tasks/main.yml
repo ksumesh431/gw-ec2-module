@@ -36,6 +36,22 @@
         name: stunnel
         state: present
 
+    - name: Ensure log directory exists
+      ansible.builtin.file:
+        path: "{{ stunnel_log_dir }}"
+        state: directory
+        owner: "{{ stunnel_user }}"
+        group: "{{ stunnel_group }}"
+        mode: "0750"
+
+    - name: Ensure runtime pid directory exists now (first run)
+      ansible.builtin.file:
+      path: /run/stunnel
+      state: directory
+      owner: "{{ stunnel_user }}"
+      group: "{{ stunnel_group }}"
+      mode: "0750"
+
     # Ensure the stunnel configuration tasks
     - name: Verify existence of stunnel configuration directory
       ansible.builtin.stat:
@@ -125,3 +141,4 @@
         regexp: "^ExecStart="
         line: "ExecStart= /usr/bin/{{ stunnel_service }} {{ stunnel_dir_path }}/stunnel.conf"
       notify: reload systemd
+

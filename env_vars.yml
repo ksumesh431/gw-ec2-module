@@ -22,6 +22,7 @@ clients:
       old_gw_b_instance_id: i-0aab76f52ea1ffdd1
       migrate_gw_b_eip: true
       # migrate_gw_a_eip: true
+      bucket: "arlitx-dynamic-client-terraform-state"
 
 
   client_id2:

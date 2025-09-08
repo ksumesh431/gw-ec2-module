@@ -1,33 +1,4 @@
 ---
-- name: Install AWS boto3 Python SDK (pinned)
-  ansible.builtin.pip:
-    name: boto3
-    state: present
-    version: "{{ boto3_version }}"
-
-- name: Clear Ansible's Python module cache
-  ansible.builtin.meta: clear_facts
-
-
-- name: Validate boto3 installation and availability
-  ansible.builtin.command:
-    cmd: python3 -c "import boto3, botocore; print('AWS libraries available')"
-  register: aws_lib_check
-  retries: 3
-  delay: 2
-  until: aws_lib_check.rc == 0
-  changed_when: false
-
-- name: Verify installed boto3 version matches required {{ boto3_version }}
-  ansible.builtin.command:
-    cmd: python3 -c "import boto3; print(boto3.__version__)"
-  register: boto3_check
-  changed_when: false
-
-- name: Display current boto3 version for verification
-  ansible.builtin.debug:
-    msg: "{{ boto3_check.stdout }}"
-
 - name: Collect AWS EC2 instance metadata for configuration
   amazon.aws.ec2_metadata_facts:
 
@@ -84,18 +55,21 @@
     stunnel_dir_path: "{{ '/etc/stunnel' if stunnel_dir.stat.exists else '/etc/stunnel5' }}"
     stunnel_service: "{{ 'stunnel' if stunnel_dir.stat.exists else 'stunnel5' }}"
 
-- name: Wait for 15 seconds before continuing
-  ansible.builtin.wait_for:
-    timeout: 15
-
-# Cert from SSM
-- name: Retrieve stunnel certificate from SSM
-  ansible.builtin.set_fact:
-    stunnel_cert: "{{ lookup('amazon.aws.ssm_parameter', stunnel_cert_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
-  register: stunnel_cert_result
+# Cert from SSM with block, error handling, and retry
+- name: Retrieve stunnel certificate from SSM with retries and error handling
+  block:
+    - name: Attempt to retrieve stunnel certificate from SSM
+      ansible.builtin.set_fact:
+        stunnel_cert: "{{ lookup('amazon.aws.ssm_parameter', stunnel_cert_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
+      register: stunnel_cert_result
+      failed_when: stunnel_cert_result.stunnel_cert is not defined or stunnel_cert_result.stunnel_cert | length == 0
+  rescue:
+    - name: Wait before retrying SSM certificate retrieval
+      ansible.builtin.wait_for:
+        timeout: 5
   retries: 5
   delay: 5
-  until: stunnel_cert_result is succeeded
+  until: stunnel_cert is defined and stunnel_cert | length > 0
 
 - name: Deploy stunnel SSL certificate from SSM parameter
   ansible.builtin.copy:

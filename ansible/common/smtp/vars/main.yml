@@ -3,7 +3,6 @@
 crowdstrike_rpm: "falcon-sensor-7.18.0-17106.amzn2023.x86_64.rpm"
 s3_bucket: "ferp-build"
 s3_path: "crowdstrike"
-boto3_version: "1.36.7"
 proot_user: "proot"
 ssm_parameter_name: "proot-user"
 recipient: "iblaggan@frontlineed.com"

@@ -10,12 +10,9 @@
     cmd: hostnamectl set-hostname "{{ final_vars.client_name }}-gw-b-v2"
   become: true
 
-- name: Collect AWS EC2 instance metadata for configuration
-  amazon.aws.ec2_metadata_facts:
-
-- name: Display current AWS region from instance metadata
-  debug:
-    msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+- name: Include boto3 role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/boto3"
 
 - name: Include ecs_scaling_crons role
   ansible.builtin.include_role:

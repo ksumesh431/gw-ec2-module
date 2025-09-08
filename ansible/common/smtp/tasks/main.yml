@@ -7,6 +7,27 @@
         state: present
         version: 1.36.7
 
+    - name: Install AWS boto3 Python SDK (pinned)
+      ansible.builtin.pip:
+        name: boto3
+        state: present
+        version: "{{ boto3_version }}"
+
+    - name: Clear Ansible's Python module cache
+      ansible.builtin.meta: clear_facts
+
+    - name: Reset connection to refresh Python environment
+      ansible.builtin.meta: reset_connection
+
+    - name: Validate boto3 installation and availability
+      ansible.builtin.command:
+        cmd: python3 -c "import boto3, botocore; print('AWS libraries available')"
+      register: aws_lib_check
+      retries: 3
+      delay: 2
+      until: aws_lib_check.rc == 0
+      changed_when: false
+
     - name: Verify installed boto3 version matches required 1.36.7
       ansible.builtin.command:
         cmd: python3 -c "import boto3; print(boto3.__version__)"

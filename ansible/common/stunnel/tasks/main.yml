@@ -1,174 +1,24 @@
-# ---
-# - name: AWS and System Setup
-#   block:
-#     - name: Install AWS boto3 Python SDK for AWS interactions
-#       ansible.builtin.pip:
-#         name: boto3
-#         state: present
-#         version: 1.36.7
-
-#     - name: Verify installed boto3 version matches required 1.36.7
-#       ansible.builtin.command:
-#         cmd: python3 -c "import boto3; print(boto3.__version__)"
-#       register: boto3_check
-#       changed_when: false
-
-#     - name: Display current boto3 version for verification
-#       ansible.builtin.debug:
-#         msg: "{{ boto3_check.stdout }}"
-
-#     - name: Collect AWS EC2 instance metadata for configuration
-#       amazon.aws.ec2_metadata_facts:
-
-#     - name: Display current AWS region from instance metadata
-#       debug:
-#         msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
-
-#     - name: Install telnet package for network connectivity testing
-#       ansible.builtin.dnf:
-#         name: telnet
-#         state: present
-
-# - name: Stunnel Setup
-#   block:
-#     - name: Install stunnel package for secure tunneling service
-#       ansible.builtin.dnf:
-#         name: stunnel
-#         state: present
-
-#     - name: Ensure stunnel group exists
-#       ansible.builtin.group:
-#           name: stunnel
-#           system: true
-#           state: present
-
-#     - name: Ensure stunnel user exists
-#       ansible.builtin.user:
-#           name: stunnel
-#           group: stunnel
-#           system: true
-#           shell: /sbin/nologin
-#           state: present
-
-#     - name: Ensure /var/log/stunnel directory exists
-#       ansible.builtin.file:
-#           path: /var/log/stunnel
-#           state: directory
-#           owner: stunnel
-#           group: stunnel
-#           mode: "0750"
-
-#     - name: Ensure log directory exists
-#       ansible.builtin.file:
-#         path: "{{ stunnel_log_dir }}"
-#         state: directory
-#         owner: "{{ stunnel_user }}"
-#         group: "{{ stunnel_group }}"
-#         mode: "0750"
-
-#     - name: Ensure runtime pid directory exists now (first run)
-#       ansible.builtin.file:
-#         path: /run/stunnel
-#         state: directory
-#         owner: "{{ stunnel_user }}"
-#         group: "{{ stunnel_group }}"
-#         mode: "0750"
-
-#     # Ensure the stunnel configuration tasks
-#     - name: Verify existence of stunnel configuration directory
-#       ansible.builtin.stat:
-#         path: /etc/stunnel
-#       register: stunnel_dir
-
-#     - name: Set stunnel directory and service variables
-#       set_fact:
-#         stunnel_dir_path: "{{ '/etc/stunnel' if stunnel_dir.stat.exists else '/etc/stunnel5' }}"
-#         stunnel_service: "{{ 'stunnel' if stunnel_dir.stat.exists else 'stunnel5' }}"
-
-#     - name: Retrieve stunnel certificate from SSM
-#       set_fact:
-#         stunnel_cert: "{{ lookup('amazon.aws.ssm_parameter', stunnel_cert_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
-#       ignore_errors: false
-
-#     - name: Deploy stunnel SSL certificate from SSM parameter
-#       ansible.builtin.copy:
-#         content: "{{ stunnel_cert }}"
-#         dest: "{{ stunnel_dir_path }}/stunnel.pem"
-#         mode: "0600"
-#       notify: restart stunnel
-
-#     - name: Retrieve stunnel configuration from old EC2 instance via AWS CLI
-#       ansible.builtin.shell: |
-#         aws ssm send-command \
-#           --instance-ids "{{ final_vars.old_gw_a_instnace_id }}" \
-#           --document-name "AWS-RunShellScript" \
-#           --parameters 'commands=["cat /etc/stunnel/stunnel.conf"]' \
-#           --region "{{ ansible_ec2_instance_identity_document_region }}" \
-#           --output text \
-#           --query 'Command.CommandId'
-#       register: command_id
-
-#     - name: Wait for 3 seconds before fetching SSM command output
-#       ansible.builtin.wait_for:
-#         timeout: 3
-
-#     - name: Wait for SSM command to complete and get output
-#       ansible.builtin.shell: |
-#         aws ssm get-command-invocation \
-#           --command-id "{{ command_id.stdout }}" \
-#           --instance-id "{{ final_vars.old_gw_a_instnace_id }}" \
-#           --region "{{ ansible_ec2_instance_identity_document_region }}" \
-#           --output text \
-#           --query 'StandardOutputContent'
-#       register: stunnel_conf_output
-#       retries: 10
-#       delay: 2
-#       until: stunnel_conf_output.rc == 0
-
-#     - name: Set stunnel configuration content
-#       set_fact:
-#         stunnel_conf: "{{ stunnel_conf_output.stdout }}"
-
-#     - name: Debug fetched stunnel configuration content
-#       ansible.builtin.debug:
-#         msg: "{{ stunnel_conf }}"
-
-#     - name: Create stunnel output directory
-#       ansible.builtin.file:
-#         path: "{{ playbook_dir }}/../../config_files_output/stunnel"
-#         state: directory
-#         mode: "0755"
-
-#     # - name: Save stunnel configuration to output directory for client
-#     #   ansible.builtin.copy:
-#     #     content: "{{ stunnel_conf }}"
-#     #     dest: "{{ playbook_dir }}/../../config_files_output/stunnel/{{ client_name }}.stunnel.conf"
-#     #     mode: "0644"
-
-#     - name: Save stunnel configuration to output directory for client
-#       ansible.builtin.copy:
-#         content: "{{ stunnel_conf }}"
-#         dest: "/tmp/{{ client_name }}.stunnel.conf"
-#         mode: "0644"
-
-#     - name: Deploy stunnel service configuration from old instance
-#       ansible.builtin.copy:
-#         content: "{{ stunnel_conf }}"
-#         dest: "{{ stunnel_dir_path }}/stunnel.conf"
-#       notify: restart stunnel
-
-#     - name: Configure stunnel systemd service execution path
-#       ansible.builtin.lineinfile:
-#         path: "/usr/lib/systemd/system/{{ stunnel_service }}.service"
-#         regexp: "^ExecStart="
-#         line: "ExecStart= /usr/bin/{{ stunnel_service }} {{ stunnel_dir_path }}/stunnel.conf"
-#       notify: reload systemd
 ---
 - name: Install AWS boto3 Python SDK (pinned)
   ansible.builtin.pip:
     name: boto3
     state: present
     version: "{{ boto3_version }}"
+
+- name: Clear Ansible's Python module cache
+  ansible.builtin.meta: clear_facts
+
+- name: Reset connection to refresh Python environment
+  ansible.builtin.meta: reset_connection
+
+- name: Validate boto3 installation and availability
+  ansible.builtin.command:
+    cmd: python3 -c "import boto3, botocore; print('AWS libraries available')"
+  register: aws_lib_check
+  retries: 3
+  delay: 2
+  until: aws_lib_check.rc == 0
+  changed_when: false
 
 - name: Verify installed boto3 version matches required {{ boto3_version }}
   ansible.builtin.command:
@@ -236,17 +86,17 @@
     stunnel_dir_path: "{{ '/etc/stunnel' if stunnel_dir.stat.exists else '/etc/stunnel5' }}"
     stunnel_service: "{{ 'stunnel' if stunnel_dir.stat.exists else 'stunnel5' }}"
 
-- name: Wait for 5 seconds before continuing
+- name: Wait for 15 seconds before continuing
   ansible.builtin.wait_for:
-    timeout: 5
+    timeout: 15
 
 # Cert from SSM
 - name: Retrieve stunnel certificate from SSM
   ansible.builtin.set_fact:
     stunnel_cert: "{{ lookup('amazon.aws.ssm_parameter', stunnel_cert_param, region=ansible_ec2_instance_identity_document_region, decrypt=true) }}"
   register: stunnel_cert_result
-  retries: 3
-  delay: 2
+  retries: 5
+  delay: 5
   until: stunnel_cert_result is succeeded
 
 - name: Deploy stunnel SSL certificate from SSM parameter

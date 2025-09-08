@@ -46,11 +46,11 @@
 
     - name: Ensure runtime pid directory exists now (first run)
       ansible.builtin.file:
-      path: /run/stunnel
-      state: directory
-      owner: "{{ stunnel_user }}"
-      group: "{{ stunnel_group }}"
-      mode: "0750"
+        path: /run/stunnel
+        state: directory
+        owner: "{{ stunnel_user }}"
+        group: "{{ stunnel_group }}"
+        mode: "0750"
 
     # Ensure the stunnel configuration tasks
     - name: Verify existence of stunnel configuration directory

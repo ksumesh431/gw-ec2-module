@@ -290,17 +290,12 @@
     msg: "{{ stunnel_conf | regex_replace('(?s)^(.{0,800}).*', '\\1... [truncated for log]') }}"
   when: stunnel_conf | length > 1000
 
-- name: Ensure local output directory exists for stunnel config (optional)
-  ansible.builtin.file:
-    path: "{{ stunnel_output_dir }}"
-    state: directory
-    mode: "0755"
-
-- name: Save stunnel configuration to output directory for client
+- name: Save stunnel configuration for client
   ansible.builtin.copy:
     content: "{{ stunnel_conf }}"
-    dest: "{{ stunnel_output_dir }}/{{ client_name }}.stunnel.conf"
+    dest: "{{ stunnel_output_dir }}"
     mode: "0644"
+    force: true # explicitly overwrite if exists
 
 - name: Deploy stunnel service configuration from old instance
   ansible.builtin.copy:

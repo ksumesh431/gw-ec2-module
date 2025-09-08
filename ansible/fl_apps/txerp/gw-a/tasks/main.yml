@@ -22,3 +22,4 @@
     name: "{{ playbook_dir }}/../common/stunnel"
   vars:
     client_name: "{{ final_vars.client_name }}"
+    ansible_ec2_instance_identity_document_region: "{{ ansible_ec2_instance_identity_document_region }}"

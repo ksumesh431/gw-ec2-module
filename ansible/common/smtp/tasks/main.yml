@@ -46,10 +46,10 @@
           --region "{{ ansible_ec2_instance_identity_document_region }}" \
           --query 'Parameter.Value' \
           --output text
-        register: proot_password_result
-        retries: 5
-        delay: 5
-        until: proot_password_result.rc == 0
+      register: proot_password_result
+      retries: 5
+      delay: 5
+      until: proot_password_result.rc == 0
 
     - name: Set proot_password fact from SSM result
       set_fact:

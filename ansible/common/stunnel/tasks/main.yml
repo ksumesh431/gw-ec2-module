@@ -321,7 +321,6 @@
     regexp: '^\s*pid\s*='
     line: "pid = {{ stunnel_pid_file }}"
     insertafter: '^output\s*='
-    insertbefore: BOF
   notify: restart stunnel
 
 - name: Ensure 'debug = 5' in stunnel.conf (at top)

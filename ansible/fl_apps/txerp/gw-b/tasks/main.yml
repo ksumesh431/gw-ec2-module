@@ -18,12 +18,20 @@
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/ecs_scaling_crons"
 
+- name: Include observium_gw_config tasks
+  ansible.builtin.include_tasks: observium_gw_config.yml
+
 - name: Include observium role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/observium"
 
-- name: Include smtp role
+- name: Include postfix_gw_config tasks
+  ansible.builtin.include_tasks: postfix_gw_config.yml
+  vars:
+    client_name: "{{ final_vars.client_name }}"
+
+- name: Include postfix smtp role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/smtp"
   vars:
-    client_name: "{{ final_vars.client_name }}" # Pass the client_name variable to the smtp role
+    client_name: "{{ final_vars.client_name }}"

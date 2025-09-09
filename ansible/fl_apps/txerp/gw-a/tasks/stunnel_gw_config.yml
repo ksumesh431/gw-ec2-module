@@ -1,0 +1,89 @@
+---
+- name: Collect AWS EC2 instance metadata for configuration
+  amazon.aws.ec2_metadata_facts:
+
+- name: Display current AWS region from instance metadata
+  ansible.builtin.debug:
+    msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+
+- name: Retrieve stunnel certificate from SSM using AWS CLI
+  ansible.builtin.shell: |
+    aws ssm get-parameter \
+      --name "{{ stunnel_cert_param }}" \
+      --with-decryption \
+      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --query 'Parameter.Value' \
+      --output text
+  register: stunnel_cert_result
+  retries: 5
+  delay: 5
+  until: stunnel_cert_result.rc == 0
+
+- name: Set stunnel certificate fact
+  ansible.builtin.set_fact:
+    stunnel_cert: "{{ stunnel_cert_result.stdout }}"
+
+- name: Deploy stunnel SSL certificate from SSM parameter
+  ansible.builtin.copy:
+    content: "{{ stunnel_cert }}"
+    dest: "{{ stunnel_dir_path }}/stunnel.pem"
+    owner: "{{ stunnel_user }}"
+    group: "{{ stunnel_group }}"
+    mode: "0600"
+  notify: restart stunnel
+
+# Pull the old stunnel.conf from existing instance via SSM CLI (AL2023 has awscli)
+- name: Retrieve stunnel configuration from old EC2 instance via AWS CLI
+  ansible.builtin.shell: |
+    aws ssm send-command \
+      --instance-ids "{{ final_vars.old_gw_a_instnace_id }}" \
+      --document-name "AWS-RunShellScript" \
+      --parameters 'commands=["cat /etc/stunnel/stunnel.conf"]' \
+      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --output text \
+      --query 'Command.CommandId'
+  register: command_id
+  changed_when: false
+
+- name: Wait briefly before fetching SSM command output
+  ansible.builtin.wait_for:
+    timeout: 3
+
+- name: Wait for SSM command to complete and get output
+  ansible.builtin.shell: |
+    aws ssm get-command-invocation \
+      --command-id "{{ command_id.stdout }}" \
+      --instance-id "{{ final_vars.old_gw_a_instnace_id }}" \
+      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --output text \
+      --query 'StandardOutputContent'
+  register: stunnel_conf_output
+  retries: 10
+  delay: 2
+  until: stunnel_conf_output.rc == 0
+  changed_when: false
+
+- name: Set stunnel configuration content
+  ansible.builtin.set_fact:
+    stunnel_conf: "{{ stunnel_conf_output.stdout }}"
+
+- name: Debug fetched stunnel configuration content
+  ansible.builtin.debug:
+    msg: "{{ stunnel_conf | regex_replace('(?s)^(.{0,800}).*', '\\1... [truncated for log]') }}"
+  when: stunnel_conf | length > 1000
+
+- name: Save stunnel configuration for client
+  ansible.builtin.copy:
+    content: "{{ stunnel_conf }}"
+    dest: "{{ stunnel_output_dir }}"
+    mode: "0644"
+    force: true # explicitly overwrite if exists
+
+- name: Deploy stunnel service configuration from old instance
+  ansible.builtin.copy:
+    content: "{{ stunnel_conf }}"
+    dest: "{{ stunnel_dir_path }}/stunnel.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart stunnel

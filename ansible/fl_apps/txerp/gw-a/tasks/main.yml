@@ -16,6 +16,8 @@
 
 - name: Imclude stunnel_gw_config tasks
   ansible.builtin.include_tasks: stunnel_gw_config.yml
+  vars:
+    client_name: "{{ final_vars.client_name }}"
 
 - name: Include stunnel role
   ansible.builtin.include_role:

@@ -18,6 +18,9 @@
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/ecs_scaling_crons"
 
+- name: Include observium_gw_config tasks
+  ansible.builtin.include_tasks: observium_gw_config.yml
+
 - name: Include observium role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/observium"

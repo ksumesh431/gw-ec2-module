@@ -1,0 +1,56 @@
+- name: Observium heartbeat cron setup block
+  block:
+
+    - name: Collect AWS EC2 instance metadata for configuration
+      amazon.aws.ec2_metadata_facts:
+
+    - name: Display current AWS region from instance metadata
+      debug:
+        msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+
+    - name: Check if ObserviumHeartbeat.sh exists on old EC2 instance
+      ansible.builtin.shell: |
+        aws ssm send-command \
+          --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["cat /usr/local/bin/ObserviumHeartbeat.sh"]' \
+          --region "{{ ansible_ec2_instance_identity_document_region }}" \
+          --output text \
+          --query 'Command.CommandId'
+      register: obs_command_id
+
+    - name: Wait for 3 seconds before fetching SSM command output
+      ansible.builtin.wait_for:
+        timeout: 3
+
+    - name: Get ObserviumHeartbeat.sh content from SSM
+      ansible.builtin.shell: |
+        aws ssm get-command-invocation \
+          --command-id "{{ obs_command_id.stdout }}" \
+          --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+          --region "{{ ansible_ec2_instance_identity_document_region }}" \
+          --output text \
+          --query 'StandardOutputContent'
+      register: obs_file_output
+      retries: 10
+      delay: 2
+      until: obs_file_output.rc == 0
+
+    - name: Check if file was found
+      ansible.builtin.debug:
+        msg: "File not found on instance {{ final_vars.old_gw_b_instnace_id }}"
+      when: obs_file_output.stdout == ""
+
+    - name: Copy ObserviumHeartbeat.sh to localhost
+      ansible.builtin.copy:
+        content: "{{ obs_file_output.stdout }}"
+        dest: /usr/local/bin/ObserviumHeartbeat.sh
+        mode: "0755"
+      when: obs_file_output.stdout != ""
+
+    - name: Set cron job for ObserviumHeartbeat.sh
+      ansible.builtin.cron:
+        name: "Observium Heartbeat"
+        job: "/usr/local/bin/ObserviumHeartbeat.sh"
+        minute: "*/5"
+      when: obs_file_output.stdout != ""

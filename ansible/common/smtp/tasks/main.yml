@@ -1,32 +1,11 @@
 ---
 - name: AWS and System Setup
   block:
-    - name: Collect AWS EC2 instance metadata for configuration
-      amazon.aws.ec2_metadata_facts:
-
-    - name: Display current AWS region from instance metadata
-      debug:
-        msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
 
     - name: Install telnet package for network connectivity testing
       ansible.builtin.dnf:
         name: telnet
         state: present
-
-    - name: Fetch Gateway B EC2 instance information
-      amazon.aws.ec2_instance_info:
-        filters:
-          "tag:Name": "{{ client_name }}-gw-b"
-        region: "{{ ansible_ec2_instance_identity_document_region }}"
-      register: gw_b_instance_info
-
-    - name: Set Gateway B private IP as a fact
-      set_fact:
-        old_gw_b_server_ip: "{{ gw_b_instance_info.instances[0].private_ip_address }}"
-
-    - name: Debug Gateway B private IP
-      debug:
-        var: old_gw_b_server_ip
 
 - name: Postfix Initial Setup
   block:
@@ -37,27 +16,6 @@
           - rsync
           - nc
         state: present
-
-    - name: Retrieve proot user password from SSM using AWS CLI
-      ansible.builtin.shell: |
-        aws ssm get-parameter \
-          --name "{{ ssm_parameter_name }}" \
-          --with-decryption \
-          --region "{{ ansible_ec2_instance_identity_document_region }}" \
-          --query 'Parameter.Value' \
-          --output text
-      register: proot_password_result
-      retries: 5
-      delay: 5
-      until: proot_password_result.rc == 0
-
-    - name: Set proot_password fact from SSM result
-      set_fact:
-        proot_password: "{{ proot_password_result.stdout }}"
-
-    - name: Create modified proot password
-      set_fact:
-        proot_password_modified: "{{ proot_password | regex_replace('23$', '') }}"
 
     - name: Install pexpect library in the Python environment (dependency for copying files from old server)
       ansible.builtin.pip:
@@ -72,66 +30,7 @@
         group: root
         mode: "0755"
 
-- name: Postfix Configuration File Transfer
-  block:
-    - name: Check if /etc/postfix/access exists
-      ansible.builtin.stat:
-        path: "/etc/postfix/access"
-      register: access_file
 
-    - name: Copy /etc/postfix/access file from old gateway server using expect
-      ansible.builtin.expect:
-        command: "scp -o StrictHostKeyChecking=no proot@{{ old_gw_b_server_ip }}:/etc/postfix/access /etc/postfix/"
-        responses:
-          password: "{{ proot_password_modified }}"
-      when: not access_file.stat.exists
-      register: scp_access_result
-
-    - name: Check if /etc/postfix/blacklisted_domains exists
-      ansible.builtin.stat:
-        path: "/etc/postfix/blacklisted_domains"
-      register: blacklisted_domains_file
-
-    - name: Copy /etc/postfix/blacklisted_domains file from old gateway server using expect
-      ansible.builtin.expect:
-        command: "scp -o StrictHostKeyChecking=no proot@{{ old_gw_b_server_ip }}:/etc/postfix/blacklisted_domains /etc/postfix/"
-        responses:
-          password: "{{ proot_password_modified }}"
-      when: not blacklisted_domains_file.stat.exists
-      register: scp_blacklisted_domains_result
-
-    - name: Check if /etc/postfix/blacklisted_senders exists
-      ansible.builtin.stat:
-        path: "/etc/postfix/blacklisted_senders"
-      register: blacklisted_senders_file
-
-    - name: Copy /etc/postfix/blacklisted_senders file from old gateway server using expect
-      ansible.builtin.expect:
-        command: "scp -o StrictHostKeyChecking=no proot@{{ old_gw_b_server_ip }}:/etc/postfix/blacklisted_senders /etc/postfix/"
-        responses:
-          password: "{{ proot_password_modified }}"
-      when: not blacklisted_senders_file.stat.exists
-      register: scp_blacklisted_senders_result
-
-    - name: Check if /etc/postfix/sasl_passwd exists
-      ansible.builtin.stat:
-        path: "/etc/postfix/sasl_passwd"
-      register: sasl_passwd_file
-
-    - name: Copy /etc/postfix/sasl_passwd file from old gateway server using expect
-      ansible.builtin.expect:
-        command: "scp -o StrictHostKeyChecking=no proot@{{ old_gw_b_server_ip }}:/etc/postfix/sasl_passwd /etc/postfix/"
-        responses:
-          password: "{{ proot_password_modified }}"
-      when: not sasl_passwd_file.stat.exists
-      register: scp_sasl_passwd_result
-
-    - name: Copy /etc/postfix/main.cf file from old gateway server using expect
-      ansible.builtin.expect:
-        command: "scp -o StrictHostKeyChecking=no proot@{{ old_gw_b_server_ip }}:/etc/postfix/main.cf /etc/postfix/"
-        responses:
-          password: "{{ proot_password_modified }}"
-      register: scp_main_cf_result
 
 - name: Postfix Service Configuration
   block:

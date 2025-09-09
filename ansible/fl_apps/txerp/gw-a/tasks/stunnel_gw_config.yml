@@ -1,10 +1,29 @@
 ---
+
 - name: Collect AWS EC2 instance metadata for configuration
   amazon.aws.ec2_metadata_facts:
 
 - name: Display current AWS region from instance metadata
   ansible.builtin.debug:
     msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+
+- name: Install utilities
+  ansible.builtin.dnf:
+    name:
+      - telnet
+      - stunnel
+    state: present
+
+# Detect stunnel dir/service name (stunnel vs stunnel5)
+- name: Verify existence of stunnel configuration directory
+  ansible.builtin.stat:
+    path: /etc/stunnel
+  register: stunnel_dir
+
+- name: Set stunnel directory and service variables
+  ansible.builtin.set_fact:
+    stunnel_dir_path: "{{ '/etc/stunnel' if stunnel_dir.stat.exists else '/etc/stunnel5' }}"
+    stunnel_service: "{{ 'stunnel' if stunnel_dir.stat.exists else 'stunnel5' }}"
 
 - name: Retrieve stunnel certificate from SSM using AWS CLI
   ansible.builtin.shell: |

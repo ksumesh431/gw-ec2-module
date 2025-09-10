@@ -5,14 +5,14 @@
     - name: Download Crowdstrike RPM from S3
       aws_s3:
         bucket: ferp-build
-        object: crowdstrike-packages/falcon-sensor-6.47.0-14408.amzn2.x86_64.rpm
-        dest: /tmp/falcon-sensor-6.47.0-14408.amzn2.x86_64.rpm
+        object: crowdstrike-packages/falcon-sensor-6.57.0-15402.amzn2023.x86_64.rpm
+        dest: /tmp/falcon-sensor-6.57.0-15402.amzn2023.x86_64.rpm
         mode: get
       register: s3_download
 
     - name: Install Crowdstrike RPM
       yum:
-        name: /tmp/falcon-sensor-6.47.0-14408.amzn2.x86_64.rpm
+        name: /tmp/falcon-sensor-6.57.0-15402.amzn2023.x86_64.rpm
         state: present
 
     - name: Get Crowdstrike CID from SSM Parameter Store using AWS CLI

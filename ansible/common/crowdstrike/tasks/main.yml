@@ -1,6 +1,11 @@
 ---
+- name: Get PLATFORM_ID from /etc/os-release
+  ansible.builtin.command: "grep ^PLATFORM_ID= /etc/os-release | cut -d= -f2 | tr -d '\"'"
+  register: platform_id
+  changed_when: false
+
 - name: Install Crowdstrike if os is amazonlinux
-  when: "'platform:al2023' in lookup('pipe', \"grep ^PLATFORM_ID= /etc/os-release | cut -d= -f2 | tr -d '\"'\")"
+  when: platform_id.stdout == "platform:al2023"
   block:
     - name: Download Crowdstrike RPM from S3
       aws_s3:

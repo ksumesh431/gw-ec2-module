@@ -18,9 +18,9 @@
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/crowdstrike"
 
-- name: Include Automox role
-  ansible.builtin.include_role:
-    name: "{{ playbook_dir }}/../common/automox"
+# - name: Include Automox role
+#   ansible.builtin.include_role:
+#     name: "{{ playbook_dir }}/../common/automox"
 
 - name: Imclude stunnel_gw_config tasks
   ansible.builtin.include_tasks: stunnel_gw_config.yml

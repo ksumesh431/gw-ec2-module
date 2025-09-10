@@ -39,7 +39,7 @@
         crowdstrike_cid: "{{ crowdstrike_cid_result.stdout }}"
 
     - name: Set Crowdstrike CID
-      command: /opt/CrowdStrike/falconctl -s --cid={{ crowdstrike_cid }}
+      command: /opt/CrowdStrike/falconctl -s -f --cid={{ crowdstrike_cid }}
       notify: restart crowdstrike
 
     - name: Set Crowdstrike tags

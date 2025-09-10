@@ -1,52 +1,55 @@
 ---
-- name: Check if Automox agent is installed
-  stat:
-    path: /opt/amagent/amagent
-  register: automox_agent
+- name: Install automox if os is amazonlinux
+  when: ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution'] == "Amazon"
+  block:
+    - name: Check if Automox agent is installed
+      stat:
+        path: /opt/amagent/amagent
+      register: automox_agent
 
-- name: Debug the Automox agent installation check
-  debug:
-    msg: "Automox agent installed: {{ automox_agent.stat.exists }}"
+    - name: Debug the Automox agent installation check
+      debug:
+        msg: "Automox agent installed: {{ automox_agent.stat.exists }}"
 
-- name: Install Automox agent if not installed
-  shell: curl -sS "https://console.automox.com/downloadInstaller?accesskey=9f26bbaf-feba-4049-8a97-ca91e0f2425b" | sudo bash
-  args:
-    executable: /bin/bash
-  when: not automox_agent.stat.exists
-  register: install_output
+    - name: Install Automox agent if not installed
+      shell: curl -sS "https://console.automox.com/downloadInstaller?accesskey=9f26bbaf-feba-4049-8a97-ca91e0f2425b" | sudo bash
+      args:
+        executable: /bin/bash
+      when: not automox_agent.stat.exists
+      register: install_output
 
-- name: Display the output of the installation command
-  debug:
-    msg: "Automox agent installation output: {{ install_output.stdout }}"
-  when: not automox_agent.stat.exists
+    - name: Display the output of the installation command
+      debug:
+        msg: "Automox agent installation output: {{ install_output.stdout }}"
+      when: not automox_agent.stat.exists
 
-- name: Check if Automox service file exists
-  stat:
-    path: /etc/systemd/system/amagent.service
-  register: automox_service_file
+    - name: Check if Automox service file exists
+      stat:
+        path: /etc/systemd/system/amagent.service
+      register: automox_service_file
 
-- name: Debug the Automox service file existence
-  debug:
-    msg: "Automox service file exists: {{ automox_service_file.stat.exists }}"
+    - name: Debug the Automox service file existence
+      debug:
+        msg: "Automox service file exists: {{ automox_service_file.stat.exists }}"
 
-- name: Check if Automox service is active
-  shell: systemctl is-active amagent
-  register: service_status
-  ignore_errors: true
-  when: automox_service_file.stat.exists
+    - name: Check if Automox service is active
+      shell: systemctl is-active amagent
+      register: service_status
+      ignore_errors: true
+      when: automox_service_file.stat.exists
 
-- name: Debug the Automox service status
-  debug:
-    msg: "Automox service status: {{ service_status.stdout }}"
-  when: automox_service_file.stat.exists
+    - name: Debug the Automox service status
+      debug:
+        msg: "Automox service status: {{ service_status.stdout }}"
+      when: automox_service_file.stat.exists
 
-- name: Start Automox service if inactive
-  systemd:
-    name: amagent
-    state: started
-  when: automox_service_file.stat.exists and service_status.stdout == "inactive"
+    - name: Start Automox service if inactive
+      systemd:
+        name: amagent
+        state: started
+      when: automox_service_file.stat.exists and service_status.stdout == "inactive"
 
-- name: Display the status of the Automox service
-  debug:
-    msg: "Automox service status after attempt to start: {{ service_status.stdout }}"
-  when: automox_service_file.stat.exists
+    - name: Display the status of the Automox service
+      debug:
+        msg: "Automox service status after attempt to start: {{ service_status.stdout }}"
+      when: automox_service_file.stat.exists

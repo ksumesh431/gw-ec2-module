@@ -10,6 +10,10 @@
     cmd: hostnamectl set-hostname "{{ final_vars.client_name }}-gw-b-v2"
   become: true
 
+- name: Include boto3 role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/boto3"
+
 - name: Include Crowdstrike role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/crowdstrike"
@@ -17,10 +21,6 @@
 - name: Include Automox role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/automox"
-
-- name: Include boto3 role
-  ansible.builtin.include_role:
-    name: "{{ playbook_dir }}/../common/boto3"
 
 - name: Include ecs_scaling_crons role
   ansible.builtin.include_role:

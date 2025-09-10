@@ -40,8 +40,6 @@
 
     - name: Set Crowdstrike CID
       command: /opt/CrowdStrike/falconctl -s --cid={{ crowdstrike_cid }}
-      args:
-        creates: /opt/CrowdStrike/falconctl
       notify: restart crowdstrike
 
     - name: Set Crowdstrike tags

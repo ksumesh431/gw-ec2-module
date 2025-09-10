@@ -9,6 +9,7 @@ clients:
       client_name: arlitx
       old_gw_a_instnace_id: i-08d3661e70305cb30
       old_gw_b_instnace_id: i-0aab76f52ea1ffdd1
+      bucket: "arlitx-dynamic-client-terraform-state"
     terraform_vars:
       aws_region: us-east-2
       availability_zone_gw_a: us-east-2a

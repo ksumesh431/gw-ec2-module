@@ -1,5 +1,4 @@
 ---
-
 - name: Collect AWS EC2 instance metadata for configuration
   amazon.aws.ec2_metadata_facts:
 
@@ -111,6 +110,14 @@
     dest: "{{ stunnel_output_dir }}"
     mode: "0644"
     force: true # explicitly overwrite if exists
+
+- name: Upload stunnel configuration to S3 bucket
+  amazon.aws.aws_s3:
+    bucket: "{{ final_vars.bucket }}"
+    object: "stunnel_configs/{{ client_name }}-stunnel.conf"
+    mode: put
+    content: "{{ stunnel_conf }}"
+  register: s3_upload
 
 - name: Deploy stunnel service configuration from old instance
   ansible.builtin.copy:

@@ -11,7 +11,7 @@
       register: s3_download
 
     - name: Install Crowdstrike RPM
-      yum:
+      dnf:
         name: /tmp/falcon-sensor-6.57.0-15402.amzn2023.x86_64.rpm
         state: present
 

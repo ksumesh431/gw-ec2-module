@@ -18,9 +18,9 @@
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/crowdstrike"
 
-# - name: Include Automox role
-#   ansible.builtin.include_role:
-#     name: "{{ playbook_dir }}/../common/automox"
+- name: Include Automox role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/automox"
 
 - name: Include ecs_scaling_crons role
   ansible.builtin.include_role:

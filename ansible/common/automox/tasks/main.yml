@@ -22,7 +22,7 @@
 
 - name: Check if Automox service file exists
   stat:
-    path: /lib/systemd/system/automox-agent.service
+    path: /etc/systemd/system/amagent.service
   register: automox_service_file
 
 - name: Debug the Automox service file existence

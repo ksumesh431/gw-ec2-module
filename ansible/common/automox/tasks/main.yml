@@ -30,7 +30,7 @@
     msg: "Automox service file exists: {{ automox_service_file.stat.exists }}"
 
 - name: Check if Automox service is active
-  shell: systemctl is-active automox-agent
+  shell: systemctl is-active amagent
   register: service_status
   ignore_errors: true
   when: automox_service_file.stat.exists
@@ -42,7 +42,7 @@
 
 - name: Start Automox service if inactive
   systemd:
-    name: automox-agent
+    name: amagent
     state: started
   when: automox_service_file.stat.exists and service_status.stdout == "inactive"
 

@@ -1,6 +1,11 @@
 ---
+- name: Get PLATFORM_ID from /etc/os-release
+  ansible.builtin.shell: "grep ^PLATFORM_ID= /etc/os-release | cut -d= -f2 | tr -d '\"'"
+  register: platform_id
+  changed_when: false
+
 - name: Install automox if os is amazonlinux
-  when: ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution'] == "Amazon"
+  when: platform_id.stdout == "platform:al2023"
   block:
     - name: Check if Automox agent is installed
       stat:

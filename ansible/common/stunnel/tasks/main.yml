@@ -103,3 +103,30 @@
     name: "{{ stunnel_service }}"
     state: started
     enabled: true
+
+- name: Ensure /root/stunnel directory exists
+  become: true
+  file:
+    path: /root/stunnel
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy check_stunnel.py to /root/stunnel
+  become: true
+  copy:
+    src: check_stunnel.py
+    dest: /root/stunnel/check_stunnel.py
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure cron to run check_stunnel.py every 5 minutes
+  become: true
+  cron:
+    name: "check stunnel health"
+    user: root
+    minute: "*/5"
+    job: "python3 /root/stunnel/check_stunnel.py >> /root/stunnel/check_stunnel.log 2>&1"
+    state: present

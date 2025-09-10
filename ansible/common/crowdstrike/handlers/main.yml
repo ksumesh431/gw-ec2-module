@@ -2,4 +2,4 @@
 - name: restart crowdstrike
   service:
     name: falcon-sensor
-  state: restarted
+    state: restarted

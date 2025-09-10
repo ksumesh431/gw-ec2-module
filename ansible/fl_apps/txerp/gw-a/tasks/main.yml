@@ -10,7 +10,11 @@
     cmd: hostnamectl set-hostname "{{ final_vars.client_name }}-gw-a-v2"
   become: true
 
-- name: Include common Automox role
+- name: Include Crowdstrike role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/crowdstrike"
+
+- name: Include Automox role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/automox"
 

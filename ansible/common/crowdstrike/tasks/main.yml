@@ -1,0 +1,43 @@
+---
+- name: Install Crowdstrike if os is amazonlinux
+  when: ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution'] == "Amazon"
+  block:
+    - name: Download Crowdstrike RPM from S3
+      aws_s3:
+        bucket: ferp-build
+        object: crowdstrike-packages/falcon-sensor-6.47.0-14408.amzn2.x86_64.rpm
+        dest: /tmp/falcon-sensor-6.47.0-14408.amzn2.x86_64.rpm
+        mode: get
+      register: s3_download
+
+    - name: Install Crowdstrike RPM
+      yum:
+        name: /tmp/falcon-sensor-6.47.0-14408.amzn2.x86_64.rpm
+        state: present
+
+    - name: Get Crowdstrike CID from SSM Parameter Store using AWS CLI
+      ansible.builtin.shell: |
+        aws ssm get-parameter \
+          --name "crowd-strike-cid" \
+          --with-decryption \
+          --region "us-east-2" \
+          --query 'Parameter.Value' \
+          --output text
+      register: crowdstrike_cid_result
+      retries: 5
+      delay: 5
+      until: crowdstrike_cid_result.rc == 0
+
+    - name: Set Crowdstrike CID fact
+      ansible.builtin.set_fact:
+        crowdstrike_cid: "{{ crowdstrike_cid_result.stdout }}"
+
+    - name: Set Crowdstrike CID
+      command: /opt/CrowdStrike/falconctl -s --cid={{ crowdstrike_cid.value }}
+      args:
+        creates: /opt/CrowdStrike/falconctl
+      notify: restart crowdstrike
+
+    - name: Set Crowdstrike tags
+      command: /opt/CrowdStrike/falconctl -s -f --tags='FrontlineProduct-erp_teams,Owner-DIST_Technology_SaaSIO_SRE_Team_Cask,Environment-aws_prod'
+      notify: restart crowdstrike

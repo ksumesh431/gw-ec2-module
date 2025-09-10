@@ -1,6 +1,6 @@
 ---
 - name: Install Crowdstrike if os is amazonlinux
-  when: ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution'] == "Amazon"
+  when: "'platform:al2023' in lookup('pipe', \"grep ^PLATFORM_ID= /etc/os-release | cut -d= -f2 | tr -d '\"'\")"
   block:
     - name: Download Crowdstrike RPM from S3
       aws_s3:

@@ -14,6 +14,7 @@
       dnf:
         name: /tmp/falcon-sensor-6.57.0-15402.amzn2023.x86_64.rpm
         state: present
+        disable_gpg_check: yes
 
     - name: Get Crowdstrike CID from SSM Parameter Store using AWS CLI
       ansible.builtin.shell: |

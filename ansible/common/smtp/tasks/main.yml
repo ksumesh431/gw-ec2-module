@@ -15,6 +15,7 @@
           - postfix
           - rsync
           - nc
+          - htop
         state: present
 
     - name: Install pexpect library in the Python environment (dependency for copying files from old server)

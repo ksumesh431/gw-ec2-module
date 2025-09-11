@@ -5,7 +5,7 @@ variable "client_name"{
 variable "instance_type" {
   type        = string
   description = "The type of EC2 instance to launch"
-  default     = "t3a.micro"
+  default     = "t3a.small"
 }
 
 variable "key_name" {

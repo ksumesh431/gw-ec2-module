@@ -88,7 +88,7 @@
       - "Old instance ID expected: {{ old_instance_id_expected }}"
       - "Primary ENI ID: {{ primary_eni_id | default('N/A') }}"
       - "Primary private IP: {{ primary_private_ip | default('N/A') }}"
-  verbosity: 1
+
 
 # # Associate EIP to this instance's primary ENI (VPC-style)
 # - name: Associate Elastic IP to primary ENI (re-associate if needed)

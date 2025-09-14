@@ -13,7 +13,7 @@ clients:
       old_gw_b_private_ip: 192.168.181.78
       gw_a_eip: 3.20.50.185
       gw_b_eip: 3.19.200.22
-      migrate_gw_b_eip: false
+      migrate_gw_b_eip: true
       migrate_gw_a_eip: false
       bucket: "arlitx-dynamic-client-terraform-state" # Ansible stores stunnel configs in this bucket
     terraform_vars:

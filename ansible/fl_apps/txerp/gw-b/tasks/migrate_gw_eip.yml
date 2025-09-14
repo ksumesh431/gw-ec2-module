@@ -76,3 +76,15 @@
         ip: "{{ target_eip }}"
         allow_reassociation: true
       when: do_migrate
+
+- name: Rollback EIP migration block
+  when: rollback | bool == true
+  block:
+    # Re-associate EIP back to old instance
+    - name: Re-associate Elastic IP back to old instance
+      amazon.aws.ec2_eip:
+        region: "{{ aws_region }}"
+        device_id: "{{ old_instance_id_expected }}"
+        ip: "{{ target_eip }}"
+        allow_reassociation: true
+      when: do_migrate

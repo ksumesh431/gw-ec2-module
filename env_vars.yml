@@ -1,7 +1,7 @@
 defaults:
   ansible_vars:
     ansible_python_interpreter: /usr/bin/python3
-    rollback: false # Set to true for running ansible rollback playbook
+    rollback: true # Set to true for running ansible rollback playbook
   terraform_vars:
 
 clients:

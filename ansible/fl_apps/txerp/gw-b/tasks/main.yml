@@ -58,7 +58,7 @@
 #     rollback: "{{ final_vars.rollback }}"
 
 - name: Include migrate_gw_eip role
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/fl_apps/txerp/migrate_eip/tasks/main.yml"
+  ansible.builtin.include_role: "{{ playbook_dir }}/fl_apps/txerp/migrate_eip"
   vars:
     old_gw_a_instnace_id: "{{ final_vars.old_gw_a_instnace_id }}"
     old_gw_b_instnace_id: "{{ final_vars.old_gw_b_instnace_id }}"

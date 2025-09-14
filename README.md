@@ -72,6 +72,7 @@ clients:
 >
 > - The S3 bucket must be created manually in AWS before running `init` for the first time.
 > - The script will validate the presence of the `bucket` variable and provide a clear error if it is missing.
+> - Enable S3 Versioning and Object Lock on the bucket. Both properties should be turned on in the bucket settings to protect the Terraform state (Object Lock requires Versioning and typically must be enabled at bucket creation time).
 
 ### Usage
 

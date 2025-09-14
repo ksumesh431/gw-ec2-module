@@ -63,3 +63,12 @@
       - "Target EIP: {{ target_eip }}"
       - "Do migrate: {{ do_migrate }}"
       - "Old instance ID expected: {{ old_instance_id_expected }}"
+
+- name: Associate Elastic IP to this instance (re-associate if needed)
+  amazon.aws.ec2_eip:
+    region: "{{ aws_region }}"
+    public_ip: "{{ target_eip }}"
+    instance_id: "{{ this_instance_id.content }}"
+    allow_reassociation: true
+    state: present
+  when: do_migrate

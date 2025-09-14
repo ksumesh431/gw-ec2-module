@@ -1,6 +1,7 @@
 defaults:
   ansible_vars:
     ansible_python_interpreter: /usr/bin/python3
+    rollback: false # Set to true for running ansible rollback playbook
   terraform_vars:
 
 clients:
@@ -9,7 +10,13 @@ clients:
       client_name: arlitx
       old_gw_a_instnace_id: i-08d3661e70305cb30
       old_gw_b_instnace_id: i-0aab76f52ea1ffdd1
-      bucket: "arlitx-dynamic-client-terraform-state"
+      old_gw_a_private_ip: 192.168.180.81
+      old_gw_b_private_ip: 192.168.181.78
+      gw_a_eip: 3.20.50.185
+      gw_b_eip: 3.19.200.22
+      migrate_gw_b_eip: true
+      migrate_gw_a_eip: false
+      bucket: "arlitx-dynamic-client-terraform-state" # Ansible stores stunnel configs in this bucket
     terraform_vars:
       aws_region: us-east-2
       availability_zone_gw_a: us-east-2a
@@ -19,8 +26,4 @@ clients:
       state: TX
       gw_a_subnet: subnet-0f2bd2b0862b1a46c
       gw_b_subnet: subnet-082fa99cf439d9459
-      old_gw_a_instance_id: i-08d3661e70305cb30
-      old_gw_b_instance_id: i-0aab76f52ea1ffdd1
-      migrate_gw_b_eip: false
-      migrate_gw_a_eip: false
-      bucket: "arlitx-dynamic-client-terraform-state"
+      bucket: "arlitx-dynamic-client-terraform-state" # Terraform state bucket to handle state storage and locking

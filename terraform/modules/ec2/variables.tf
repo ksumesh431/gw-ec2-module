@@ -60,26 +60,26 @@ variable "gw_b_subnet" {
   default = ""
 }
 
-variable "migrate_gw_a_eip" {
-  description = "If true, migrate GW-A EIP to this new instance"
-  type        = bool
-  default     = false
-}
+# variable "migrate_gw_a_eip" {
+#   description = "If true, migrate GW-A EIP to this new instance"
+#   type        = bool
+#   default     = false
+# }
 
-variable "migrate_gw_b_eip" {
-  description = "If true, migrate GW-B EIP to this new instance"
-  type        = bool
-  default     = false
-}
+# variable "migrate_gw_b_eip" {
+#   description = "If true, migrate GW-B EIP to this new instance"
+#   type        = bool
+#   default     = false
+# }
 
-variable "old_gw_a_instance_id" {
-  description = "Instance ID of the old GW-A server"
-  type        = string
-  default     = ""
-}
+# variable "old_gw_a_instance_id" {
+#   description = "Instance ID of the old GW-A server"
+#   type        = string
+#   default     = ""
+# }
 
-variable "old_gw_b_instance_id" {
-  description = "Instance ID of the old GW-B server"
-  type        = string
-  default     = ""
-}
+# variable "old_gw_b_instance_id" {
+#   description = "Instance ID of the old GW-B server"
+#   type        = string
+#   default     = ""
+# }

@@ -42,29 +42,29 @@ variable "state" {
   type        = string
 }
 
-variable "migrate_gw_a_eip" {
-  description = "If true, migrate GW-A EIP to the new instance"
-  type        = bool
-  default     = false
-}
-
-variable "migrate_gw_b_eip" {
-  description = "If true, migrate GW-B EIP to the new instance"
-  type        = bool
-  default     = false
-}
-
-variable "old_gw_a_instance_id" {
-  description = "The instance ID of the old Gateway A server"
-  type        = string
-}
-variable "old_gw_b_instance_id" {
-  description = "The instance ID of the old Gateway B server"
-  type        = string
-}
-
 variable "bucket" {
   description = "The S3 bucket to use for the Terraform state"
   type        = string
   default     = ""
 }
+
+# variable "migrate_gw_a_eip" {
+#   description = "If true, migrate GW-A EIP to the new instance"
+#   type        = bool
+#   default     = false
+# }
+
+# variable "migrate_gw_b_eip" {
+#   description = "If true, migrate GW-B EIP to the new instance"
+#   type        = bool
+#   default     = false
+# }
+
+# variable "old_gw_a_instance_id" {
+#   description = "The instance ID of the old Gateway A server"
+#   type        = string
+# }
+# variable "old_gw_b_instance_id" {
+#   description = "The instance ID of the old Gateway B server"
+#   type        = string
+# }

@@ -1,0 +1,65 @@
+---
+- name: Get IMDSv2 token
+  uri:
+    url: http://169.254.169.254/latest/api/token
+    method: PUT
+    headers:
+      X-aws-ec2-metadata-token-ttl-seconds: "300"
+    return_content: true
+  register: imds_token
+
+- name: Get this instance id
+  uri:
+    url: http://169.254.169.254/latest/meta-data/instance-id
+    method: GET
+    headers:
+      X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+    return_content: true
+  register: this_instance_id
+
+- name: Get region
+  uri:
+    url: http://169.254.169.254/latest/dynamic/instance-identity/document
+    method: GET
+    headers:
+      X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+    return_content: true
+  register: iid_doc
+
+- name: Set region fact
+  set_fact:
+    aws_region: "{{ (iid_doc.content | from_json).region }}"
+
+- name: Get tags of this instance
+  amazon.aws.ec2_instance_info:
+    region: "{{ aws_region }}"
+    instance_ids:
+      - "{{ this_instance_id.content }}"
+  register: instance_info
+
+- name: Extract Name tag
+  set_fact:
+    instance_name: "{{ item.value }}"
+  loop: "{{ instance_info.instances[0].tags | dict2items }}"
+  when: item.key == 'Name'
+
+- name: Set gw_side based on Name tag
+  set_fact:
+    gw_side: >-
+      {{ 'a' if 'gw-a' in instance_name else 'b' }}
+
+- name: Build target mapping from globals
+  set_fact:
+    target_eip: "{{ gw_a_eip if gw_side == 'a' else gw_b_eip }}"
+    do_migrate: "{{ (migrate_gw_a_eip if gw_side == 'a' else migrate_gw_b_eip) | bool }}"
+    old_instance_id_expected: "{{ old_gw_a_instnace_id if gw_side == 'a' else old_gw_b_instnace_id }}"
+
+- name: Debug all the facts so far
+  ansible.builtin.debug:
+    msg:
+      - "This instance ID: {{ this_instance_id.content }}"
+      - "Instance Name tag: {{ instance_name }}"
+      - "GW side: {{ gw_side }}"
+      - "Target EIP: {{ target_eip }}"
+      - "Do migrate: {{ do_migrate }}"
+      - "Old instance ID expected: {{ old_instance_id_expected }}"

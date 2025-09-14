@@ -7,12 +7,10 @@ terraform {
     }
   }
 
-  # Must init with s3 bucket name from environemnt variables at runtime
-  # terraform init -backend-config="bucket=${TF_VAR_s3_bucket_name}"
   backend "s3" {
     key    = "dynamic-terraform.tfstate"
     region = "us-east-2"
-    # dynamodb_table = "terraform-state-lock"
+    use_lockfile = true
   }
 }
 

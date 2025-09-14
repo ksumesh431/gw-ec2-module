@@ -66,7 +66,7 @@
       - "Region: {{ aws_region }}"
 
 - name: Migrate EIP block
-  when: rollback | bool == false
+  when: do_migrate
   block:
     # Associate EIP to this instance
     - name: Associate Elastic IP to this instance
@@ -75,10 +75,9 @@
         device_id: "{{ this_instance_id.content }}"
         ip: "{{ target_eip }}"
         allow_reassociation: true
-      when: do_migrate
 
 - name: Rollback EIP migration block
-  when: rollback | bool == true
+  when: not do_migrate
   block:
     # Re-associate EIP back to old instance
     - name: Re-associate Elastic IP back to old instance

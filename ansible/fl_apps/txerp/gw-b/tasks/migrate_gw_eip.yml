@@ -93,7 +93,7 @@
 # Associate EIP to this instance
 - name: Associate Elastic IP to this instance
   amazon.aws.ec2_eip:
-    devide_id: "{{ this_instance_id.content }}"
+    device_id: "{{ this_instance_id.content }}"
     ip: "{{ target_eip }}"
     allow_reassociation: true
   when: do_migrate

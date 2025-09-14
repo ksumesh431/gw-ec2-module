@@ -1,12 +1,22 @@
 - name: Observium heartbeat cron setup block
   block:
+    - name: Get IMDSv2 token
+      uri:
+        url: http://169.254.169.254/latest/api/token
+        method: PUT
+        headers:
+          X-aws-ec2-metadata-token-ttl-seconds: "300"
+        return_content: true
+      register: imds_token
 
-    - name: Collect AWS EC2 instance metadata for configuration
-      amazon.aws.ec2_metadata_facts:
-
-    - name: Display current AWS region from instance metadata
-      debug:
-        msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+    - name: Get region
+      uri:
+        url: http://169.254.169.254/latest/dynamic/instance-identity/document
+        method: GET
+        headers:
+          X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+        return_content: true
+      register: iid_doc
 
     - name: Check if ObserviumHeartbeat.sh exists on old EC2 instance
       ansible.builtin.shell: |
@@ -14,7 +24,7 @@
           --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
           --document-name "AWS-RunShellScript" \
           --parameters 'commands=["cat /usr/local/bin/ObserviumHeartbeat.sh"]' \
-          --region "{{ ansible_ec2_instance_identity_document_region }}" \
+          --region "{{ aws_region }}" \
           --output text \
           --query 'Command.CommandId'
       register: obs_command_id
@@ -28,7 +38,7 @@
         aws ssm get-command-invocation \
           --command-id "{{ obs_command_id.stdout }}" \
           --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
-          --region "{{ ansible_ec2_instance_identity_document_region }}" \
+          --region "{{ aws_region }}" \
           --output text \
           --query 'StandardOutputContent'
       register: obs_file_output

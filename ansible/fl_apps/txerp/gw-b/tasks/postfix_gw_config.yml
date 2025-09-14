@@ -1,11 +1,22 @@
 - name: AWS and System Setup
   block:
-    - name: Collect AWS EC2 instance metadata for configuration
-      amazon.aws.ec2_metadata_facts:
+    - name: Get IMDSv2 token
+      uri:
+        url: http://169.254.169.254/latest/api/token
+        method: PUT
+        headers:
+          X-aws-ec2-metadata-token-ttl-seconds: "300"
+        return_content: true
+      register: imds_token
 
-    - name: Display current AWS region from instance metadata
-      debug:
-        msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+    - name: Get region
+      uri:
+        url: http://169.254.169.254/latest/dynamic/instance-identity/document
+        method: GET
+        headers:
+          X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+        return_content: true
+      register: iid_doc
 
     - name: Install telnet package for network connectivity testing
       ansible.builtin.dnf:
@@ -16,7 +27,7 @@
       amazon.aws.ec2_instance_info:
         filters:
           "tag:Name": "{{ client_name }}-gw-b"
-        region: "{{ ansible_ec2_instance_identity_document_region }}"
+        region: "{{ aws_region }}"
       register: gw_b_instance_info
 
     - name: Set Gateway B private IP as a fact
@@ -42,7 +53,7 @@
         aws ssm get-parameter \
           --name "{{ ssm_parameter_name }}" \
           --with-decryption \
-          --region "{{ ansible_ec2_instance_identity_document_region }}" \
+          --region "{{ aws_region }}" \
           --query 'Parameter.Value' \
           --output text
       register: proot_password_result

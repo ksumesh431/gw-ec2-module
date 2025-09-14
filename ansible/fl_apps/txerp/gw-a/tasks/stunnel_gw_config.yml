@@ -1,11 +1,4 @@
 ---
-# - name: Collect AWS EC2 instance metadata for configuration
-#   amazon.aws.ec2_metadata_facts:
-
-# - name: Display current AWS region from instance metadata
-#   ansible.builtin.debug:
-#     msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
-
 - name: Get IMDSv2 token
   uri:
     url: http://169.254.169.254/latest/api/token

@@ -55,3 +55,4 @@
     gw_b_eip: "{{ final_vars.gw_b_eip }}"
     migrate_gw_a_eip: "{{ final_vars.migrate_gw_a_eip }}"
     migrate_gw_b_eip: "{{ final_vars.migrate_gw_b_eip }}"
+    rollback: "{{ final_vars.rollback }}"

@@ -14,49 +14,6 @@
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/boto3"
 
-# - name: Include Crowdstrike role
-#   ansible.builtin.include_role:
-#     name: "{{ playbook_dir }}/../common/crowdstrike"
-
-# - name: Include Automox role
-#   ansible.builtin.include_role:
-#     name: "{{ playbook_dir }}/../common/automox"
-
-# - name: Include ecs_scaling_crons role
-#   ansible.builtin.include_role:
-#     name: "{{ playbook_dir }}/../common/ecs_scaling_crons"
-
-# - name: Include observium_gw_config tasks
-#   ansible.builtin.include_tasks: observium_gw_config.yml
-
-# - name: Include observium role
-#   ansible.builtin.include_role:
-#     name: "{{ playbook_dir }}/../common/observium"
-
-# - name: Include postfix_gw_config tasks
-#   ansible.builtin.include_tasks: postfix_gw_config.yml
-#   vars:
-#     client_name: "{{ final_vars.client_name }}"
-
-# - name: Include postfix smtp role
-#   ansible.builtin.include_role:
-#     name: "{{ playbook_dir }}/../common/smtp"
-#   vars:
-#     client_name: "{{ final_vars.client_name }}"
-# - name: Include migrate_gw_eip tasks
-#   ansible.builtin.include_tasks: migrate_gw_eip.yml
-#   when: final_vars.migrate_gw_b_eip | bool
-#   vars:
-#     old_gw_a_instnace_id: "{{ final_vars.old_gw_a_instnace_id }}"
-#     old_gw_b_instnace_id: "{{ final_vars.old_gw_b_instnace_id }}"
-#     old_gw_a_private_ip: "{{ final_vars.old_gw_a_private_ip }}"
-#     old_gw_b_private_ip: "{{ final_vars.old_gw_b_private_ip }}"
-#     gw_a_eip: "{{ final_vars.gw_a_eip }}"
-#     gw_b_eip: "{{ final_vars.gw_b_eip }}"
-#     migrate_gw_a_eip: "{{ final_vars.migrate_gw_a_eip }}"
-#     migrate_gw_b_eip: "{{ final_vars.migrate_gw_b_eip }}"
-#     rollback: "{{ final_vars.rollback }}"
-
 - name: Include migrate_gw_eip role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../fl_apps/txerp/migrate_eip"
@@ -70,3 +27,35 @@
     migrate_gw_a_eip: "{{ final_vars.migrate_gw_a_eip }}"
     migrate_gw_b_eip: "{{ final_vars.migrate_gw_b_eip }}"
     rollback: "{{ final_vars.rollback }}"
+
+
+- name: Include Crowdstrike role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/crowdstrike"
+
+- name: Include Automox role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/automox"
+
+- name: Include ecs_scaling_crons role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/ecs_scaling_crons"
+
+- name: Include observium_gw_config tasks
+  ansible.builtin.include_tasks: observium_gw_config.yml
+
+- name: Include observium role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/observium"
+
+- name: Include postfix_gw_config tasks
+  ansible.builtin.include_tasks: postfix_gw_config.yml
+  vars:
+    client_name: "{{ final_vars.client_name }}"
+
+- name: Include postfix smtp role
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../common/smtp"
+  vars:
+    client_name: "{{ final_vars.client_name }}"
+

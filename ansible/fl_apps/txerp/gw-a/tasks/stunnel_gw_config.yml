@@ -1,10 +1,32 @@
 ---
-- name: Collect AWS EC2 instance metadata for configuration
-  amazon.aws.ec2_metadata_facts:
+# - name: Collect AWS EC2 instance metadata for configuration
+#   amazon.aws.ec2_metadata_facts:
 
-- name: Display current AWS region from instance metadata
-  ansible.builtin.debug:
-    msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+# - name: Display current AWS region from instance metadata
+#   ansible.builtin.debug:
+#     msg: "The AWS region is {{ ansible_ec2_instance_identity_document_region }}"
+
+- name: Get IMDSv2 token
+  uri:
+    url: http://169.254.169.254/latest/api/token
+    method: PUT
+    headers:
+      X-aws-ec2-metadata-token-ttl-seconds: "300"
+    return_content: true
+  register: imds_token
+
+- name: Get region
+  uri:
+    url: http://169.254.169.254/latest/dynamic/instance-identity/document
+    method: GET
+    headers:
+      X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+    return_content: true
+  register: iid_doc
+
+- name: Set region fact
+  set_fact:
+    aws_region: "{{ (iid_doc.content | from_json).region }}"
 
 - name: Install utilities
   ansible.builtin.dnf:
@@ -43,7 +65,7 @@
     aws ssm get-parameter \
       --name "{{ stunnel_cert_param }}" \
       --with-decryption \
-      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --region "{{ aws_region }}" \
       --query 'Parameter.Value' \
       --output text
   register: stunnel_cert_result
@@ -71,7 +93,7 @@
       --instance-ids "{{ final_vars.old_gw_a_instnace_id }}" \
       --document-name "AWS-RunShellScript" \
       --parameters 'commands=["cat /etc/stunnel/stunnel.conf"]' \
-      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --region "{{ aws_region }}" \
       --output text \
       --query 'Command.CommandId'
   register: command_id
@@ -86,7 +108,7 @@
     aws ssm get-command-invocation \
       --command-id "{{ command_id.stdout }}" \
       --instance-id "{{ final_vars.old_gw_a_instnace_id }}" \
-      --region "{{ ansible_ec2_instance_identity_document_region }}" \
+      --region "{{ aws_region }}" \
       --output text \
       --query 'StandardOutputContent'
   register: stunnel_conf_output

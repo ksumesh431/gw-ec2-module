@@ -120,6 +120,10 @@
           S3="{{ s3_uri_base }}"
           mkdir -p "$OUT"
 
+
+          LOG="$OUT/ssm-migration.log"
+          exec > >(tee -a "$LOG") 2>&1
+          
           echo "[OLD] Preparing dump to $OUT and upload to $S3"
 
           # Ensure tools

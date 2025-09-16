@@ -85,7 +85,6 @@
           - awscli
           - tar
           - gzip
-          - mariadb
         state: present
       become: true
 

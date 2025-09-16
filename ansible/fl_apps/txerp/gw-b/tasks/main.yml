@@ -28,12 +28,13 @@
     migrate_gw_b_eip: "{{ final_vars.migrate_gw_b_eip }}"
     rollback: "{{ final_vars.rollback }}"
 
-- name: Include observium_gw_config tasks
-  ansible.builtin.include_tasks: observium_gw_config.yml
-
 - name: Include observium role
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../common/observium"
+    
+- name: Include observium_gw_config tasks
+  ansible.builtin.include_tasks: observium_gw_config.yml
+
 
 - name: Include Crowdstrike role
   ansible.builtin.include_role:

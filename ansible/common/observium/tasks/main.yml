@@ -149,3 +149,37 @@
   systemd:
     name: httpd
     state: restarted
+
+
+- name: Finalize Observium Poller Configuration
+  block:
+    - name: Ensure fping is installed
+      ansible.builtin.package: # Changed to 'package' for better portability
+        name: fping
+        state: present
+      become: true
+
+    - name: Find the path of fping
+      ansible.builtin.command: which fping
+      register: _fping_path
+      changed_when: false
+      check_mode: false
+
+    - name: Set setuid permission on fping binary
+      ansible.builtin.file:
+        path: "{{ _fping_path.stdout }}"
+        mode: '4755' # u=rws,g=rx,o=rx
+      become: true
+      when: _fping_path.stdout
+
+    # CORRECTED TASK BELOW
+    - name: Ensure fping path is explicitly set in config.php
+      ansible.builtin.lineinfile:
+        path: /opt/observium/config.php
+        # This regex now uses \\s to be valid inside double quotes.
+        # It also correctly escapes the literal $, [ and ] characters for the regex engine.
+        regexp: "^\\s*\\$config\\['fping'\\]"
+        line: "$config['fping'] = '{{ _fping_path.stdout }}';"
+        state: present
+      become: true
+      when: _fping_path.stdout

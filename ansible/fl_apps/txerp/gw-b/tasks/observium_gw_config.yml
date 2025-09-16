@@ -65,260 +65,587 @@
         minute: "*/5"
       when: obs_file_output.stdout != ""
 
-- name: Observium migration (old -> new) via SSM + local restore
+# - name: Observium migration (old -> new) via SSM + local restore
+#   block:
+#     - name: Assert required variables are present
+#       ansible.builtin.assert:
+#         that:
+#           - aws_region is defined
+#           - final_vars.old_gw_b_instnace_id is defined
+#           - observium_s3_bucket is defined
+#           - observium_s3_prefix is defined
+#           - observium_migration_tag is defined
+#           - observium_base is defined
+#           - web_user is defined
+#           - web_group is defined
+
+#     - name: Ensure tools present on new instance
+#       ansible.builtin.package:
+#         name:
+#           - awscli
+#           - tar
+#           - gzip
+#         state: present
+#       become: true
+
+#     - name: Check if dump exists in S3
+#       ansible.builtin.shell: |
+#         aws s3api head-object \
+#           --bucket "{{ observium_s3_bucket }}" \
+#           --key "{{ s3_key_dump }}"
+#       register: _s3_dump_head
+#       changed_when: false
+#       failed_when: false
+
+#     - name: Check if RRD tar exists in S3
+#       ansible.builtin.shell: |
+#         aws s3api head-object \
+#           --bucket "{{ observium_s3_bucket }}" \
+#           --key "{{ s3_key_rrd }}"
+#       register: _s3_rrd_head
+#       changed_when: false
+#       failed_when: false
+
+#     - name: Decide if SSM dump/upload is needed
+#       ansible.builtin.set_fact:
+#         _need_ssm_dump: >-
+#           {{ (_s3_dump_head.rc != 0) or (_s3_rrd_head.rc != 0) }}
+
+#     - name: Build old-instance migration script (SSM)
+#       ansible.builtin.set_fact:
+#         old_migration_script: |
+#           set -Eeuo pipefail
+#           BASE="{{ observium_base }}"
+#           OUT="$BASE/migrate/{{ observium_migration_tag }}"
+#           S3="{{ s3_uri_base }}"
+#           mkdir -p "$OUT"
+
+#           echo "[OLD] Preparing dump to $OUT and upload to $S3"
+
+#           # Ensure tools
+#           if ! command -v mysqldump >/dev/null 2>&1; then
+#             if command -v apt-get >/dev/null 2>&1; then
+#               apt-get update -y && apt-get install -y mariadb-client || true
+#             elif command -v yum >/dev/null 2>&1; then
+#               yum install -y mariadb || true
+#             elif command -v dnf >/dev/null 2>&1; then
+#               dnf install -y mariadb || true
+#             fi
+#           fi
+#           if ! command -v aws >/dev/null 2>&1; then
+#             if command -v apt-get >/dev/null 2>&1; then
+#               apt-get update -y && apt-get install -y awscli || true
+#             elif command -v yum >/dev/null 2>&1; then
+#               yum install -y awscli || true
+#             elif command -v dnf >/dev/null 2>&1; then
+#               dnf install -y awscli || true
+#             fi
+#           fi
+
+#           # DB dump (skip if already exists locally)
+#           if [ ! -s "$OUT/observium-dump.sql" ]; then
+#             echo "[OLD] Creating DB dump..."
+#             MYSQL_PWD='{{ observium_db_pass_old }}' \
+#             mysqldump -u '{{ observium_db_user_old }}' \
+#               '{{ observium_db_name_old }}' \
+#               --no-tablespaces --single-transaction \
+#               --add-drop-table --extended-insert \
+#               > "$OUT/observium-dump.sql"
+#           else
+#             echo "[OLD] Local DB dump exists, skipping."
+#           fi
+
+#           # RRD archive (skip if already exists locally)
+#           if [ ! -s "$OUT/observium-rrd.tar.gz" ]; then
+#             echo "[OLD] Archiving RRD directory..."
+#             tar -C "$BASE" -zcf "$OUT/observium-rrd.tar.gz" rrd
+#           else
+#             echo "[OLD] Local RRD archive exists, skipping."
+#           fi
+
+#           # Save config.php (optional)
+#           if [ -f "$BASE/config.php" ] && [ ! -s "$OUT/config.php" ]; then
+#             cp -a "$BASE/config.php" "$OUT/config.php"
+#           fi
+
+#           # Upload to S3 only if missing
+#           if ! aws s3 ls "$S3/observium-dump.sql" >/dev/null 2>&1; then
+#             echo "[OLD] Uploading dump..."
+#             aws s3 cp "$OUT/observium-dump.sql" "$S3/"
+#           else
+#             echo "[OLD] Dump already in S3, skipping upload."
+#           fi
+
+#           if ! aws s3 ls "$S3/observium-rrd.tar.gz" >/dev/null 2>&1; then
+#             echo "[OLD] Uploading RRD archive..."
+#             aws s3 cp "$OUT/observium-rrd.tar.gz" "$S3/"
+#           else
+#             echo "[OLD] RRD already in S3, skipping upload."
+#           fi
+
+#           if [ -f "$OUT/config.php" ] && \
+#              ! aws s3 ls "$S3/config.php" >/dev/null 2>&1; then
+#             echo "[OLD] Uploading config.php..."
+#             aws s3 cp "$OUT/config.php" "$S3/"
+#           fi
+
+#           echo "[OLD] DONE"
+#       when: _need_ssm_dump
+
+#     - name: Trigger SSM on OLD instance to create/upload artifacts
+#       ansible.builtin.shell: |
+#         aws ssm send-command \
+#           --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+#           --document-name "AWS-RunShellScript" \
+#           --parameters '{{ {"commands": [ old_migration_script ] } | to_json }}' \
+#           --region "{{ aws_region }}" \
+#           --output text \
+#           --query 'Command.CommandId'
+#       register: _old_cmd_id
+#       when: _need_ssm_dump
+
+#     - name: Wait for OLD instance SSM command to finish
+#       ansible.builtin.shell: |
+#         aws ssm get-command-invocation \
+#           --command-id "{{ _old_cmd_id.stdout }}" \
+#           --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+#           --region "{{ aws_region }}" \
+#           --output text \
+#           --query 'Status'
+#       register: _old_status
+#       retries: 180
+#       delay: 5
+#       until: _old_status.stdout in ['Success']
+#       failed_when: _old_status.stdout in ['Cancelled','TimedOut','Failed','DeliveryTimedOut']
+#       changed_when: false
+#       when: _need_ssm_dump
+
+#     - name: Ensure local migration directory exists on new instance
+#       ansible.builtin.file:
+#         path: "{{ obs_mig_dir }}"
+#         state: directory
+#         mode: "0755"
+#       become: true
+
+#     - name: Download DB dump from S3 if not present
+#       ansible.builtin.shell: |
+#         aws s3 cp "{{ s3_uri_base }}/observium-dump.sql" \
+#           "{{ obs_mig_dir }}/"
+#       args:
+#         creates: "{{ obs_mig_dir }}/observium-dump.sql"
+#       changed_when: true
+#       become: true
+
+#     - name: Download RRD archive from S3 if not present
+#       ansible.builtin.shell: |
+#         aws s3 cp "{{ s3_uri_base }}/observium-rrd.tar.gz" \
+#           "{{ obs_mig_dir }}/"
+#       args:
+#         creates: "{{ obs_mig_dir }}/observium-rrd.tar.gz"
+#       changed_when: true
+#       become: true
+
+#     - name: Download config.php snapshot if present (best effort)
+#       ansible.builtin.shell: |
+#         aws s3 cp "{{ s3_uri_base }}/config.php" \
+#           "{{ obs_mig_dir }}/" || true
+#       changed_when: false
+#       become: true
+
+#     - name: Check if migration already applied
+#       ansible.builtin.stat:
+#         path: "{{ obs_mark }}"
+#       register: _mig_mark
+
+#     - name: Import DB and restore RRDs (one-time per tag)
+#       block:
+#         - name: Import Observium database from dump
+#           ansible.builtin.shell: |
+#             set -Eeuo pipefail
+#             BASE="{{ observium_base }}"
+#             OUT="{{ obs_mig_dir }}"
+#             DB="{{ observium_db_name_old }}"
+#             # Try building MYSQL command from config.php; fallback to socket/root
+#             MYSQL=(mysql)
+#             if ! "${MYSQL[@]}" -e 'SELECT 1' >/dev/null 2>&1; then
+#               if command -v php >/dev/null 2>&1 && \
+#                  [ -f "$BASE/config.php" ]; then
+#                 DBU=$(php -r 'include "/opt/observium/config.php";
+#                   echo $config["db_user"];')
+#                 DBP=$(php -r 'include "/opt/observium/config.php";
+#                   echo $config["db_pass"];')
+#                 MYSQL=(mysql -u "$DBU" -p"$DBP")
+#               fi
+#             fi
+
+#             # Ensure database exists
+#             if ! "${MYSQL[@]}" -e "USE ${DB};" >/dev/null 2>&1; then
+#               "${MYSQL[@]}" -e "CREATE DATABASE IF NOT EXISTS ${DB}
+#                 CHARACTER SET utf8 COLLATE utf8_general_ci;"
+#             fi
+
+#             # Drop all tables idempotently
+#             "${MYSQL[@]}" -N -e "
+#               SELECT CONCAT('DROP TABLE IF EXISTS \`', table_name, '\`;')
+#               FROM information_schema.tables
+#               WHERE table_schema='${DB}';
+#             " | "${MYSQL[@]}" "${DB}" || true
+
+#             # Import dump
+#             "${MYSQL[@]}" "${DB}" < "${OUT}/observium-dump.sql"
+#           args:
+#             executable: /bin/bash
+#           become: true
+
+#         - name: Restore RRD directory
+#           ansible.builtin.shell: |
+#             set -Eeuo pipefail
+#             BASE="{{ observium_base }}"
+#             OUT="{{ obs_mig_dir }}"
+#             TAG="{{ observium_migration_tag }}"
+
+#             if [ -d "$BASE/rrd" ] && [ ! -d "$BASE/rrd.bak.$TAG" ]; then
+#               mv "$BASE/rrd" "$BASE/rrd.bak.$TAG"
+#             fi
+
+#             tar -C "$BASE" -zxf "${OUT}/observium-rrd.tar.gz"
+
+#             chown -R "{{ web_user }}:{{ web_group }}" "$BASE/rrd" || true
+#           args:
+#             executable: /bin/bash
+#           become: true
+
+#         - name: Write migration done marker
+#           ansible.builtin.file:
+#             path: "{{ obs_mark }}"
+#             state: touch
+#             mode: "0644"
+#           become: true
+#       when: not _mig_mark.stat.exists
+
+- name: Observium migration block
   block:
-    - name: Assert required variables are present
-      ansible.builtin.assert:
-        that:
-          - aws_region is defined
-          - final_vars.old_gw_b_instnace_id is defined
-          - observium_s3_bucket is defined
-          - observium_s3_prefix is defined
-          - observium_migration_tag is defined
-          - observium_base is defined
-          - web_user is defined
-          - web_group is defined
+    - name: Check if migration has already been completed
+      ansible.builtin.stat:
+        path: /opt/observium/.migration_completed
+      register: migration_status
 
-    - name: Ensure tools present on new instance
-      ansible.builtin.package:
-        name:
-          - awscli
-          - tar
-          - gzip
-        state: present
-      become: true
+    - name: Migration tasks
+      block:
+        - name: Stop Observium cron jobs on old server
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["crontab -l > /tmp/old_crontab.bak && crontab -r || true"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: stop_cron_cmd
 
-    - name: Check if dump exists in S3
-      ansible.builtin.shell: |
-        aws s3api head-object \
-          --bucket "{{ observium_s3_bucket }}" \
-          --key "{{ s3_key_dump }}"
-      register: _s3_dump_head
-      changed_when: false
-      failed_when: false
+        - name: Wait for cron stop command to complete
+          ansible.builtin.shell: |
+            aws ssm wait command-executed \
+              --command-id "{{ stop_cron_cmd.stdout }}" \
+              --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+              --region "{{ aws_region }}"
 
-    - name: Check if RRD tar exists in S3
-      ansible.builtin.shell: |
-        aws s3api head-object \
-          --bucket "{{ observium_s3_bucket }}" \
-          --key "{{ s3_key_rrd }}"
-      register: _s3_rrd_head
-      changed_when: false
-      failed_when: false
+        - name: Create MySQL dump on old server
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["cd /opt/observium && mysqldump -u observium -pprologic --databases observium --no-tablespaces --add-drop-table --extended-insert > observium-dump.sql"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: mysql_dump_cmd
 
-    - name: Decide if SSM dump/upload is needed
-      ansible.builtin.set_fact:
-        _need_ssm_dump: >-
-          {{ (_s3_dump_head.rc != 0) or (_s3_rrd_head.rc != 0) }}
+        - name: Wait for MySQL dump to complete
+          ansible.builtin.shell: |
+            aws ssm wait command-executed \
+              --command-id "{{ mysql_dump_cmd.stdout }}" \
+              --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+              --region "{{ aws_region }}"
 
-    - name: Build old-instance migration script (SSM)
-      ansible.builtin.set_fact:
-        old_migration_script: |
-          set -Eeuo pipefail
-          BASE="{{ observium_base }}"
-          OUT="$BASE/migrate/{{ observium_migration_tag }}"
-          S3="{{ s3_uri_base }}"
-          mkdir -p "$OUT"
+        - name: Create RRD archive on old server
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["cd /opt/observium && tar zcf observium-rrd.tar.gz rrd/"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: rrd_archive_cmd
 
-          echo "[OLD] Preparing dump to $OUT and upload to $S3"
+        - name: Wait for RRD archive to complete
+          ansible.builtin.shell: |
+            aws ssm wait command-executed \
+              --command-id "{{ rrd_archive_cmd.stdout }}" \
+              --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+              --region "{{ aws_region }}"
 
-          # Ensure tools
-          if ! command -v mysqldump >/dev/null 2>&1; then
-            if command -v apt-get >/dev/null 2>&1; then
-              apt-get update -y && apt-get install -y mariadb-client || true
-            elif command -v yum >/dev/null 2>&1; then
-              yum install -y mariadb || true
-            elif command -v dnf >/dev/null 2>&1; then
-              dnf install -y mariadb || true
-            fi
-          fi
-          if ! command -v aws >/dev/null 2>&1; then
-            if command -v apt-get >/dev/null 2>&1; then
-              apt-get update -y && apt-get install -y awscli || true
-            elif command -v yum >/dev/null 2>&1; then
-              yum install -y awscli || true
-            elif command -v dnf >/dev/null 2>&1; then
-              dnf install -y awscli || true
-            fi
-          fi
+        - name: Get MySQL dump from old server
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["base64 -w 0 /opt/observium/observium-dump.sql"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: get_dump_cmd
 
-          # DB dump (skip if already exists locally)
-          if [ ! -s "$OUT/observium-dump.sql" ]; then
-            echo "[OLD] Creating DB dump..."
-            MYSQL_PWD='{{ observium_db_pass_old }}' \
-            mysqldump -u '{{ observium_db_user_old }}' \
-              '{{ observium_db_name_old }}' \
-              --no-tablespaces --single-transaction \
-              --add-drop-table --extended-insert \
-              > "$OUT/observium-dump.sql"
-          else
-            echo "[OLD] Local DB dump exists, skipping."
-          fi
+        - name: Wait and fetch MySQL dump content
+          ansible.builtin.shell: |
+            aws ssm get-command-invocation \
+              --command-id "{{ get_dump_cmd.stdout }}" \
+              --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'StandardOutputContent'
+          register: mysql_dump_content
+          retries: 15
+          delay: 5
+          until: mysql_dump_content.rc == 0
 
-          # RRD archive (skip if already exists locally)
-          if [ ! -s "$OUT/observium-rrd.tar.gz" ]; then
-            echo "[OLD] Archiving RRD directory..."
-            tar -C "$BASE" -zcf "$OUT/observium-rrd.tar.gz" rrd
-          else
-            echo "[OLD] Local RRD archive exists, skipping."
-          fi
+        - name: Save MySQL dump to new server
+          ansible.builtin.shell: |
+            echo "{{ mysql_dump_content.stdout }}" | base64 -d > /opt/observium/observium-dump.sql
+          when: mysql_dump_content.stdout != ""
 
-          # Save config.php (optional)
-          if [ -f "$BASE/config.php" ] && [ ! -s "$OUT/config.php" ]; then
-            cp -a "$BASE/config.php" "$OUT/config.php"
-          fi
+        - name: Get RRD archive from old server (chunked approach)
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["split -b 50M /opt/observium/observium-rrd.tar.gz /opt/observium/rrd-part- && ls /opt/observium/rrd-part-*"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: split_rrd_cmd
 
-          # Upload to S3 only if missing
-          if ! aws s3 ls "$S3/observium-dump.sql" >/dev/null 2>&1; then
-            echo "[OLD] Uploading dump..."
-            aws s3 cp "$OUT/observium-dump.sql" "$S3/"
-          else
-            echo "[OLD] Dump already in S3, skipping upload."
-          fi
+        - name: Wait for RRD split to complete
+          ansible.builtin.shell: |
+            aws ssm get-command-invocation \
+              --command-id "{{ split_rrd_cmd.stdout }}" \
+              --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'StandardOutputContent'
+          register: rrd_parts_list
+          retries: 15
+          delay: 5
+          until: rrd_parts_list.rc == 0
 
-          if ! aws s3 ls "$S3/observium-rrd.tar.gz" >/dev/null 2>&1; then
-            echo "[OLD] Uploading RRD archive..."
-            aws s3 cp "$OUT/observium-rrd.tar.gz" "$S3/"
-          else
-            echo "[OLD] RRD already in S3, skipping upload."
-          fi
+        - name: Transfer RRD parts
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["base64 -w 0 {{ item }}"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: get_part_cmd
+          loop: "{{ rrd_parts_list.stdout.split('\n') | select('match', '.*rrd-part-.*') | list }}"
+          when: rrd_parts_list.stdout != ""
 
-          if [ -f "$OUT/config.php" ] && \
-             ! aws s3 ls "$S3/config.php" >/dev/null 2>&1; then
-            echo "[OLD] Uploading config.php..."
-            aws s3 cp "$OUT/config.php" "$S3/"
-          fi
+        - name: Fetch and reassemble RRD parts
+          block:
+            - name: Get each RRD part content
+              ansible.builtin.shell: |
+                aws ssm get-command-invocation \
+                  --command-id "{{ item.stdout }}" \
+                  --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+                  --region "{{ aws_region }}" \
+                  --output text \
+                  --query 'StandardOutputContent'
+              register: rrd_part_content
+              retries: 15
+              delay: 5
+              until: rrd_part_content.rc == 0
+              loop: "{{ get_part_cmd.results }}"
+              when: get_part_cmd.results is defined
 
-          echo "[OLD] DONE"
-      when: _need_ssm_dump
+            - name: Reassemble RRD archive on new server
+              ansible.builtin.shell: |
+                cd /opt/observium
+                {% for part in rrd_part_content.results %}
+                echo "{{ part.stdout }}" | base64 -d >> observium-rrd.tar.gz
+                {% endfor %}
+              when: rrd_part_content.results is defined
 
-    - name: Trigger SSM on OLD instance to create/upload artifacts
+        - name: Get config.php from old server
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["base64 -w 0 /opt/observium/config.php"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: get_config_cmd
+
+        - name: Fetch config.php content
+          ansible.builtin.shell: |
+            aws ssm get-command-invocation \
+              --command-id "{{ get_config_cmd.stdout }}" \
+              --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'StandardOutputContent'
+          register: config_content
+          retries: 10
+          delay: 3
+          until: config_content.rc == 0
+
+        - name: Backup current config.php
+          ansible.builtin.copy:
+            src: /opt/observium/config.php
+            dest: /opt/observium/config.php.new-install.bak
+            remote_src: true
+
+        - name: Save old config.php for reference
+          ansible.builtin.shell: |
+            echo "{{ config_content.stdout }}" | base64 -d > /opt/observium/config.php.old
+          when: config_content.stdout != ""
+
+        - name: Stop current Observium services
+          ansible.builtin.systemd:
+            name: "{{ item }}"
+            state: stopped
+          loop:
+            - httpd
+            - mariadb
+          ignore_errors: true
+
+        - name: Start MariaDB service
+          ansible.builtin.systemd:
+            name: mariadb
+            state: started
+
+        - name: Drop existing Observium tables
+          ansible.builtin.shell: |
+            mysql -u root -pprologic -e "DROP DATABASE IF EXISTS observium;"
+            mysql -u root -pprologic -e "CREATE DATABASE observium;"
+            mysql -u root -pprologic -e "GRANT ALL PRIVILEGES ON observium.* TO 'observium'@'localhost' IDENTIFIED BY 'prologic';"
+            mysql -u root -pprologic -e "FLUSH PRIVILEGES;"
+
+        - name: Import MySQL dump
+          ansible.builtin.shell: |
+            cd /opt/observium
+            mysql -u observium -pprologic observium < observium-dump.sql
+
+        - name: Backup current RRD directory
+          ansible.builtin.shell: |
+            cd /opt/observium
+            mv rrd rrd.new-install.bak || true
+          ignore_errors: true
+
+        - name: Extract RRD archive
+          ansible.builtin.shell: |
+            cd /opt/observium
+            tar zxf observium-rrd.tar.gz
+
+        - name: Set proper ownership for Observium files
+          ansible.builtin.file:
+            path: "{{ item }}"
+            owner: apache
+            group: apache
+            recurse: true
+          loop:
+            - /opt/observium/rrd
+            - /opt/observium/logs
+
+        - name: Merge configurations (manual step reminder)
+          ansible.builtin.debug:
+            msg: |
+              IMPORTANT: Please manually merge settings from /opt/observium/config.php.old
+              into /opt/observium/config.php, especially:
+              - Database credentials (if different)
+              - Mail settings
+              - Authentication settings
+              - Custom paths and URLs
+
+        - name: Start httpd service
+          ansible.builtin.systemd:
+            name: httpd
+            state: started
+            enabled: yes
+
+        - name: Restore Observium cron jobs
+          ansible.builtin.cron:
+            name: "{{ item.name }}"
+            job: "{{ item.job }}"
+            minute: "{{ item.minute | default('*') }}"
+            hour: "{{ item.hour | default('*') }}"
+          loop:
+            - name: "Observium Poller"
+              job: "/opt/observium/poller.php -h all >> /dev/null 2>&1"
+              minute: "*/5"
+            - name: "Observium Discovery"
+              job: "/opt/observium/discovery.php -h all >> /dev/null 2>&1"
+              minute: "33"
+              hour: "*/6"
+            - name: "Observium Housekeeping"
+              job: "/opt/observium/housekeeping.php -ysel >> /dev/null 2>&1"
+              minute: "47"
+              hour: "2"
+
+        - name: Cleanup migration files
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - /opt/observium/observium-dump.sql
+            - /opt/observium/observium-rrd.tar.gz
+
+        - name: Mark migration as completed
+          ansible.builtin.file:
+            path: /opt/observium/.migration_completed
+            state: touch
+            owner: apache
+            group: apache
+
+        - name: Cleanup old server files
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["rm -f /opt/observium/observium-dump.sql /opt/observium/observium-rrd.tar.gz /opt/observium/rrd-part-*"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: cleanup_cmd
+
+      when: not migration_status.stat.exists
+
+    - name: Migration already completed
+      ansible.builtin.debug:
+        msg: "Observium migration has already been completed. Skipping migration tasks."
+      when: migration_status.stat.exists
+
+  rescue:
+    - name: Migration failed - restore services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+      loop:
+        - mariadb
+        - httpd
+      ignore_errors: true
+
+    - name: Restore old cron on source server if migration failed
       ansible.builtin.shell: |
         aws ssm send-command \
           --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
           --document-name "AWS-RunShellScript" \
-          --parameters '{{ {"commands": [ old_migration_script ] } | to_json }}' \
-          --region "{{ aws_region }}" \
-          --output text \
-          --query 'Command.CommandId'
-      register: _old_cmd_id
-      when: _need_ssm_dump
+          --parameters 'commands=["crontab /tmp/old_crontab.bak || true"]' \
+          --region "{{ aws_region }}"
+      ignore_errors: true
 
-    - name: Wait for OLD instance SSM command to finish
-      ansible.builtin.shell: |
-        aws ssm get-command-invocation \
-          --command-id "{{ _old_cmd_id.stdout }}" \
-          --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
-          --region "{{ aws_region }}" \
-          --output text \
-          --query 'Status'
-      register: _old_status
-      retries: 180
-      delay: 5
-      until: _old_status.stdout in ['Success']
-      failed_when: _old_status.stdout in ['Cancelled','TimedOut','Failed','DeliveryTimedOut']
-      changed_when: false
-      when: _need_ssm_dump
-
-    - name: Ensure local migration directory exists on new instance
-      ansible.builtin.file:
-        path: "{{ obs_mig_dir }}"
-        state: directory
-        mode: "0755"
-      become: true
-
-    - name: Download DB dump from S3 if not present
-      ansible.builtin.shell: |
-        aws s3 cp "{{ s3_uri_base }}/observium-dump.sql" \
-          "{{ obs_mig_dir }}/"
-      args:
-        creates: "{{ obs_mig_dir }}/observium-dump.sql"
-      changed_when: true
-      become: true
-
-    - name: Download RRD archive from S3 if not present
-      ansible.builtin.shell: |
-        aws s3 cp "{{ s3_uri_base }}/observium-rrd.tar.gz" \
-          "{{ obs_mig_dir }}/"
-      args:
-        creates: "{{ obs_mig_dir }}/observium-rrd.tar.gz"
-      changed_when: true
-      become: true
-
-    - name: Download config.php snapshot if present (best effort)
-      ansible.builtin.shell: |
-        aws s3 cp "{{ s3_uri_base }}/config.php" \
-          "{{ obs_mig_dir }}/" || true
-      changed_when: false
-      become: true
-
-    - name: Check if migration already applied
-      ansible.builtin.stat:
-        path: "{{ obs_mark }}"
-      register: _mig_mark
-
-    - name: Import DB and restore RRDs (one-time per tag)
-      block:
-        - name: Import Observium database from dump
-          ansible.builtin.shell: |
-            set -Eeuo pipefail
-            BASE="{{ observium_base }}"
-            OUT="{{ obs_mig_dir }}"
-            DB="{{ observium_db_name_old }}"
-            # Try building MYSQL command from config.php; fallback to socket/root
-            MYSQL=(mysql)
-            if ! "${MYSQL[@]}" -e 'SELECT 1' >/dev/null 2>&1; then
-              if command -v php >/dev/null 2>&1 && \
-                 [ -f "$BASE/config.php" ]; then
-                DBU=$(php -r 'include "/opt/observium/config.php";
-                  echo $config["db_user"];')
-                DBP=$(php -r 'include "/opt/observium/config.php";
-                  echo $config["db_pass"];')
-                MYSQL=(mysql -u "$DBU" -p"$DBP")
-              fi
-            fi
-
-            # Ensure database exists
-            if ! "${MYSQL[@]}" -e "USE ${DB};" >/dev/null 2>&1; then
-              "${MYSQL[@]}" -e "CREATE DATABASE IF NOT EXISTS ${DB}
-                CHARACTER SET utf8 COLLATE utf8_general_ci;"
-            fi
-
-            # Drop all tables idempotently
-            "${MYSQL[@]}" -N -e "
-              SELECT CONCAT('DROP TABLE IF EXISTS \`', table_name, '\`;')
-              FROM information_schema.tables
-              WHERE table_schema='${DB}';
-            " | "${MYSQL[@]}" "${DB}" || true
-
-            # Import dump
-            "${MYSQL[@]}" "${DB}" < "${OUT}/observium-dump.sql"
-          args:
-            executable: /bin/bash
-          become: true
-
-        - name: Restore RRD directory
-          ansible.builtin.shell: |
-            set -Eeuo pipefail
-            BASE="{{ observium_base }}"
-            OUT="{{ obs_mig_dir }}"
-            TAG="{{ observium_migration_tag }}"
-
-            if [ -d "$BASE/rrd" ] && [ ! -d "$BASE/rrd.bak.$TAG" ]; then
-              mv "$BASE/rrd" "$BASE/rrd.bak.$TAG"
-            fi
-
-            tar -C "$BASE" -zxf "${OUT}/observium-rrd.tar.gz"
-
-            chown -R "{{ web_user }}:{{ web_group }}" "$BASE/rrd" || true
-          args:
-            executable: /bin/bash
-          become: true
-
-        - name: Write migration done marker
-          ansible.builtin.file:
-            path: "{{ obs_mark }}"
-            state: touch
-            mode: "0644"
-          become: true
-      when: not _mig_mark.stat.exists
+    - name: Fail the playbook
+      ansible.builtin.fail:
+        msg: "Observium migration failed. Please check the logs and restore manually if needed."

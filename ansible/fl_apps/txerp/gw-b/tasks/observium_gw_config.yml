@@ -116,7 +116,7 @@
         old_migration_script: |
           #!/bin/bash
           set -Eeuo pipefail
-
+          
           # Add logging and error handling
           exec 2>&1
 
@@ -334,6 +334,45 @@
             mode: "0644"
           become: true
       when: not _mig_mark.stat.exists
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # - name: Observium migration block
 #   block:
 #     - name: Check if migration has already been completed
@@ -680,14 +719,14 @@
 #           ansible.builtin.debug:
 #             msg: |
 #               ✅ Observium migration completed successfully!
-
+              
 #               Next steps:
 #               1. Check the web UI: http://your-new-server/observium/
 #               2. Verify devices are showing up
 #               3. Check that graphs are rendering
 #               4. Test alert functionality
 #               5. Update any external integrations to point to new server
-
+              
 #               Config files:
 #               - New config: /opt/observium/config.php
 #               - Old config reference: /opt/observium/config.php.old

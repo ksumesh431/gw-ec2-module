@@ -323,6 +323,16 @@
 #           become: true
 #       when: not _mig_mark.stat.exists
 
+
+
+
+
+
+
+
+
+
+
 - name: Observium migration block
   block:
     - name: Check if migration has already been completed
@@ -424,27 +434,31 @@
           ansible.builtin.shell: |
             cd /opt/observium
             rm -f observium-dump.sql.gz
+            touch observium-dump.sql.gz
+          when: sql_chunks_list.stdout != ""
 
-            # Process each chunk individually
-            {% for chunk in sql_chunks_list.stdout.split('\n') | select('match', '.*sql-chunk-.*') | list %}
-            echo "Processing chunk: {{ chunk }}"
-
+        - name: Process each SQL chunk
+          ansible.builtin.shell: |
+            cd /opt/observium
+            CHUNK="{{ item }}"
+            echo "Processing chunk: $CHUNK"
+            
             # Send command to get base64 of chunk
             CMD_ID=$(aws ssm send-command \
               --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
               --document-name "AWS-RunShellScript" \
-              --parameters 'commands=["if [ -f /opt/observium/{{ chunk }} ]; then base64 -w 0 /opt/observium/{{ chunk }}; else echo CHUNK_NOT_FOUND; fi"]' \
+              --parameters "commands=[\"if [ -f /opt/observium/$CHUNK ]; then base64 -w 0 /opt/observium/$CHUNK; else echo CHUNK_NOT_FOUND; fi\"]" \
               --region "{{ aws_region }}" \
               --output text \
               --query 'Command.CommandId')
-
-            echo "Command ID for {{ chunk }}: $CMD_ID"
+            
+            echo "Command ID for $CHUNK: $CMD_ID"
             sleep 5
-
+            
             # Retry getting the content
             CONTENT=""
             for attempt in {1..15}; do
-              echo "Attempt $attempt for {{ chunk }}..."
+              echo "Attempt $attempt for $CHUNK..."
               CONTENT=$(aws ssm get-command-invocation \
                 --command-id "$CMD_ID" \
                 --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
@@ -453,40 +467,42 @@
                 --query 'StandardOutputContent' 2>/dev/null || echo "")
               
               if [ "$CONTENT" = "CHUNK_NOT_FOUND" ]; then
-                echo "ERROR: {{ chunk }} not found on source server"
+                echo "ERROR: $CHUNK not found on source server"
                 exit 1
               elif [ -n "$CONTENT" ] && [ "$CONTENT" != "" ]; then
-                echo "Got content for {{ chunk }}: ${#CONTENT} characters"
+                echo "Got content for $CHUNK: ${#CONTENT} characters"
                 break
               fi
               sleep 3
             done
-
+            
             if [ -z "$CONTENT" ] || [ "$CONTENT" = "" ]; then
-              echo "ERROR: Failed to get content for {{ chunk }} after 15 attempts"
+              echo "ERROR: Failed to get content for $CHUNK after 15 attempts"
               exit 1
             fi
-
+            
             # Decode and append to file
             if echo "$CONTENT" | base64 -d >> observium-dump.sql.gz 2>/dev/null; then
-              echo "✓ {{ chunk }} decoded and appended successfully"
+              echo "✓ $CHUNK decoded and appended successfully"
             else
-              echo "ERROR: Failed to decode {{ chunk }}"
+              echo "ERROR: Failed to decode $CHUNK"
               echo "Content preview: ${CONTENT:0:100}..."
               exit 1
             fi
+          loop: "{{ sql_chunks_list.stdout.split('\n') | select('match', '.*sql-chunk-.*') | list }}"
+          when: sql_chunks_list.stdout != ""
 
-            {% endfor %}
-
-            # Verify and decompress
+        - name: Verify and decompress MySQL dump
+          ansible.builtin.shell: |
+            cd /opt/observium
             echo "Verifying assembled file..."
             ls -lh observium-dump.sql.gz
-
+            
             if [ ! -f observium-dump.sql.gz ]; then
               echo "ERROR: No assembled file found"
               exit 1
             fi
-
+            
             if gzip -t observium-dump.sql.gz 2>/dev/null; then
               echo "✓ Gzip file is valid, decompressing..."
               gunzip observium-dump.sql.gz
@@ -498,12 +514,7 @@
               exit 1
             fi
           when: sql_chunks_list.stdout != ""
-          register: sql_transfer_result
-
-        - name: Display SQL transfer results
-          ansible.builtin.debug:
-            var: sql_transfer_result.stdout_lines
-          when: sql_transfer_result is defined
+          register: sql_decompress_result
 
         - name: Verify MySQL dump was transferred
           ansible.builtin.stat:
@@ -706,14 +717,14 @@
           ansible.builtin.debug:
             msg: |
               ✅ Observium migration completed successfully!
-
+              
               Next steps:
               1. Check the web UI: http://your-new-server/observium/
               2. Verify devices are showing up
               3. Check that graphs are rendering
               4. Test alert functionality
               5. Update any external integrations to point to new server
-
+              
               Config files:
               - New config: /opt/observium/config.php
               - Old config reference: /opt/observium/config.php.old

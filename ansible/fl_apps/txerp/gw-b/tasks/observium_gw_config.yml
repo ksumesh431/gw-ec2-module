@@ -332,7 +332,6 @@
 
 
 
-
 - name: Observium migration block
   block:
     - name: Check if migration has already been completed
@@ -430,100 +429,62 @@
           delay: 5
           until: sql_chunks_list.rc == 0
 
-        - name: Transfer MySQL dump chunks one by one
-          ansible.builtin.shell: |
-            cd /opt/observium
-            rm -f observium-dump.sql.gz
-            touch observium-dump.sql.gz
+        - name: Get SQL chunk files list
+          ansible.builtin.set_fact:
+            sql_chunks: "{{ sql_chunks_list.stdout.split('\n') | select('match', '.*sql-chunk-.*') | list }}"
           when: sql_chunks_list.stdout != ""
 
-        - name: Process each SQL chunk
+        - name: Initialize empty SQL dump file
+          ansible.builtin.file:
+            path: /opt/observium/observium-dump.sql.gz
+            state: touch
+          when: sql_chunks_list.stdout != ""
+
+        - name: Transfer each SQL chunk
           ansible.builtin.shell: |
-            cd /opt/observium
-            CHUNK="{{ item }}"
-            echo "Processing chunk: $CHUNK"
-            
-            # Send command to get base64 of chunk
-            CMD_ID=$(aws ssm send-command \
+            aws ssm send-command \
               --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
               --document-name "AWS-RunShellScript" \
-              --parameters "commands=[\"if [ -f /opt/observium/$CHUNK ]; then base64 -w 0 /opt/observium/$CHUNK; else echo CHUNK_NOT_FOUND; fi\"]" \
+              --parameters 'commands=["base64 -w 0 /opt/observium/{{ item }}"]' \
               --region "{{ aws_region }}" \
               --output text \
-              --query 'Command.CommandId')
-            
-            echo "Command ID for $CHUNK: $CMD_ID"
-            sleep 5
-            
-            # Retry getting the content
-            CONTENT=""
-            for attempt in {1..15}; do
-              echo "Attempt $attempt for $CHUNK..."
-              CONTENT=$(aws ssm get-command-invocation \
-                --command-id "$CMD_ID" \
-                --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
-                --region "{{ aws_region }}" \
-                --output text \
-                --query 'StandardOutputContent' 2>/dev/null || echo "")
-              
-              if [ "$CONTENT" = "CHUNK_NOT_FOUND" ]; then
-                echo "ERROR: $CHUNK not found on source server"
-                exit 1
-              elif [ -n "$CONTENT" ] && [ "$CONTENT" != "" ]; then
-                echo "Got content for $CHUNK: ${#CONTENT} characters"
-                break
-              fi
-              sleep 3
-            done
-            
-            if [ -z "$CONTENT" ] || [ "$CONTENT" = "" ]; then
-              echo "ERROR: Failed to get content for $CHUNK after 15 attempts"
-              exit 1
-            fi
-            
-            # Decode and append to file
-            if echo "$CONTENT" | base64 -d >> observium-dump.sql.gz 2>/dev/null; then
-              echo "✓ $CHUNK decoded and appended successfully"
-            else
-              echo "ERROR: Failed to decode $CHUNK"
-              echo "Content preview: ${CONTENT:0:100}..."
-              exit 1
-            fi
-          loop: "{{ sql_chunks_list.stdout.split('\n') | select('match', '.*sql-chunk-.*') | list }}"
-          when: sql_chunks_list.stdout != ""
+              --query 'Command.CommandId'
+          register: chunk_commands
+          loop: "{{ sql_chunks }}"
+          when: sql_chunks is defined
 
-        - name: Verify and decompress MySQL dump
+        - name: Wait for chunk transfers to complete
+          ansible.builtin.pause:
+            seconds: 5
+          when: chunk_commands is defined
+
+        - name: Get and decode each SQL chunk
+          ansible.builtin.shell: |
+            CONTENT=$(aws ssm get-command-invocation \
+              --command-id "{{ item.stdout }}" \
+              --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'StandardOutputContent')
+            echo "$CONTENT" | base64 -d >> /opt/observium/observium-dump.sql.gz
+          loop: "{{ chunk_commands.results }}"
+          when: chunk_commands is defined and chunk_commands.results is defined
+
+        - name: Decompress SQL dump
           ansible.builtin.shell: |
             cd /opt/observium
-            echo "Verifying assembled file..."
-            ls -lh observium-dump.sql.gz
-            
-            if [ ! -f observium-dump.sql.gz ]; then
-              echo "ERROR: No assembled file found"
-              exit 1
-            fi
-            
-            if gzip -t observium-dump.sql.gz 2>/dev/null; then
-              echo "✓ Gzip file is valid, decompressing..."
-              gunzip observium-dump.sql.gz
-              ls -lh observium-dump.sql
-              echo "✅ MySQL dump transfer completed successfully"
-            else
-              echo "ERROR: Assembled gzip file is corrupted"
-              hexdump -C observium-dump.sql.gz | head -5
-              exit 1
-            fi
-          when: sql_chunks_list.stdout != ""
-          register: sql_decompress_result
+            gunzip observium-dump.sql.gz
+            ls -lh observium-dump.sql
+          when: sql_chunks is defined
 
-        - name: Verify MySQL dump was transferred
+        - name: Verify MySQL dump exists
           ansible.builtin.stat:
             path: /opt/observium/observium-dump.sql
           register: sql_dump_check
 
         - name: Fail if MySQL dump transfer failed
           ansible.builtin.fail:
-            msg: "MySQL dump transfer failed - dump file not found or empty"
+            msg: "MySQL dump transfer failed"
           when: not sql_dump_check.stat.exists or sql_dump_check.stat.size < 1000
 
         # Continue with RRD transfer (keep existing RRD transfer code)

@@ -26,3 +26,47 @@ clients:
       gw_a_subnet: subnet-0f2bd2b0862b1a46c
       gw_b_subnet: subnet-082fa99cf439d9459
       bucket: "arlitx-dynamic-client-terraform-state" # Terraform state bucket to handle state storage and locking
+  arlitx:
+    ansible_vars:
+      client_name: arlitx
+      old_gw_a_instnace_id: i-08d3661e70305cb30
+      old_gw_b_instnace_id: i-0aab76f52ea1ffdd1
+      old_gw_a_private_ip: 192.168.180.81
+      old_gw_b_private_ip: 192.168.181.78
+      gw_a_eip: 3.20.50.185
+      gw_b_eip: 3.19.200.22
+      migrate_gw_b_eip: false
+      migrate_gw_a_eip: false
+      bucket: "arlitx-dynamic-client-terraform-state" # Ansible stores stunnel configs in this bucket
+    terraform_vars:
+      aws_region: us-east-2
+      availability_zone_gw_a: us-east-2a
+      availability_zone_gw_b: us-east-2b
+      key_name: ARLI
+      client_name: ARLITX
+      state: TX
+      gw_a_subnet: subnet-0f2bd2b0862b1a46c
+      gw_b_subnet: subnet-082fa99cf439d9459
+      bucket: "arlitx-dynamic-client-terraform-state" # Terraform state bucket to handle state storage and locking
+  arlitx:
+    ansible_vars:
+      client_name: arlitx
+      old_gw_a_instnace_id: i-08d3661e70305cb30
+      old_gw_b_instnace_id: i-0aab76f52ea1ffdd1
+      old_gw_a_private_ip: 192.168.180.81
+      old_gw_b_private_ip: 192.168.181.78
+      gw_a_eip: 3.20.50.185
+      gw_b_eip: 3.19.200.22
+      migrate_gw_b_eip: false
+      migrate_gw_a_eip: false
+      bucket: "arlitx-dynamic-client-terraform-state" # Ansible stores stunnel configs in this bucket
+    terraform_vars:
+      aws_region: us-east-2
+      availability_zone_gw_a: us-east-2a
+      availability_zone_gw_b: us-east-2b
+      key_name: ARLI
+      client_name: ARLITX
+      state: TX
+      gw_a_subnet: subnet-0f2bd2b0862b1a46c
+      gw_b_subnet: subnet-082fa99cf439d9459
+      bucket: "arlitx-dynamic-client-terraform-state" # Terraform state bucket to handle state storage and locking

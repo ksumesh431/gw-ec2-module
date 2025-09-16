@@ -337,3 +337,44 @@
             mode: "0644"
           become: true
       when: not _mig_mark.stat.exists
+
+- name: Migrate /etc/hosts entries from old instance
+  block:
+    - name: Get /etc/hosts content from OLD instance via SSM
+      ansible.builtin.shell: |
+        aws ssm send-command \
+          --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["cat /etc/hosts"]' \
+          --region "{{ aws_region }}" \
+          --output text \
+          --query 'Command.CommandId'
+      register: _hosts_command_id
+
+    - name: Wait a moment for SSM to execute
+      ansible.builtin.wait_for:
+        timeout: 3
+
+    - name: Fetch /etc/hosts content from SSM output
+      ansible.builtin.shell: |
+        aws ssm get-command-invocation \
+          --command-id "{{ _hosts_command_id.stdout }}" \
+          --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+          --region "{{ aws_region }}" \
+          --output text \
+          --query 'StandardOutputContent'
+      register: _hosts_content
+      retries: 5
+      delay: 2
+      until: _hosts_content.rc == 0
+
+    - name: Append old hosts entries to /etc/hosts on NEW instance
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        block: |
+          # The following entries were migrated from the old Observium server
+          {{ _hosts_content.stdout }}
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - MIGRATED HOSTS"
+        state: present
+      become: true
+      when: _hosts_content.stdout | length > 0

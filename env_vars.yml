@@ -15,58 +15,58 @@ clients:
       gw_b_eip: 3.19.200.22
       migrate_gw_b_eip: false
       migrate_gw_a_eip: false
-      bucket: "arlitx-dynamic-client-terraform-state" # Ansible stores stunnel configs in this bucket
+      bucket: "arlitx-dynamic-client-terraform-state"
     terraform_vars:
       aws_region: us-east-2
       availability_zone_gw_a: us-east-2a
       availability_zone_gw_b: us-east-2b
       key_name: ARLI
-      client_name: ARLITX
+      client_name: ARLITX # Must match VPC name in AWS
       state: TX
       gw_a_subnet: subnet-0f2bd2b0862b1a46c
       gw_b_subnet: subnet-082fa99cf439d9459
-      bucket: "arlitx-dynamic-client-terraform-state" # Terraform state bucket to handle state storage and locking
-  arlitx:
+      bucket: "arlitx-dynamic-client-terraform-state"
+  desotx:
     ansible_vars:
-      client_name: arlitx
-      old_gw_a_instnace_id: i-08d3661e70305cb30
-      old_gw_b_instnace_id: i-0aab76f52ea1ffdd1
-      old_gw_a_private_ip: 192.168.180.81
-      old_gw_b_private_ip: 192.168.181.78
-      gw_a_eip: 3.20.50.185
-      gw_b_eip: 3.19.200.22
+      client_name: desotx
+      old_gw_a_instnace_id: i-0de50ed64e19162c1
+      old_gw_b_instnace_id: i-02c2bc4adecf30737
+      old_gw_a_private_ip: 192.168.180.96
+      old_gw_b_private_ip: 192.168.181.123
+      gw_a_eip: 3.13.155.148
+      gw_b_eip: 3.130.127.34
       migrate_gw_b_eip: false
       migrate_gw_a_eip: false
-      bucket: "arlitx-dynamic-client-terraform-state" # Ansible stores stunnel configs in this bucket
+      bucket: "desotx-dynamic-client-terraform-state"
     terraform_vars:
       aws_region: us-east-2
       availability_zone_gw_a: us-east-2a
       availability_zone_gw_b: us-east-2b
-      key_name: ARLI
-      client_name: ARLITX
+      key_name: desotx
+      client_name: DESOTX # Must match VPC name in AWS
       state: TX
-      gw_a_subnet: subnet-0f2bd2b0862b1a46c
-      gw_b_subnet: subnet-082fa99cf439d9459
-      bucket: "arlitx-dynamic-client-terraform-state" # Terraform state bucket to handle state storage and locking
-  arlitx:
+      gw_a_subnet: subnet-0e85ed42699d4d5ff
+      gw_b_subnet: subnet-0825d9f229cf116d8
+      bucket: "desotx-dynamic-client-terraform-state"
+  edgetx:
     ansible_vars:
-      client_name: arlitx
-      old_gw_a_instnace_id: i-08d3661e70305cb30
-      old_gw_b_instnace_id: i-0aab76f52ea1ffdd1
-      old_gw_a_private_ip: 192.168.180.81
-      old_gw_b_private_ip: 192.168.181.78
-      gw_a_eip: 3.20.50.185
-      gw_b_eip: 3.19.200.22
+      client_name: edgetx
+      old_gw_a_instnace_id: i-08e5831766b9837df
+      old_gw_b_instnace_id: i-06a42f5d69c3026d2
+      old_gw_a_private_ip: 192.168.180.37
+      old_gw_b_private_ip: 192.168.181.133
+      gw_a_eip: 3.138.51.33
+      gw_b_eip: 3.140.54.226
       migrate_gw_b_eip: false
       migrate_gw_a_eip: false
-      bucket: "arlitx-dynamic-client-terraform-state" # Ansible stores stunnel configs in this bucket
+      bucket: "edgetx-dynamic-client-terraform-state"
     terraform_vars:
       aws_region: us-east-2
       availability_zone_gw_a: us-east-2a
       availability_zone_gw_b: us-east-2b
-      key_name: ARLI
-      client_name: ARLITX
+      key_name: edgetx
+      client_name: edgetx # Must match VPC name in AWS
       state: TX
-      gw_a_subnet: subnet-0f2bd2b0862b1a46c
-      gw_b_subnet: subnet-082fa99cf439d9459
-      bucket: "arlitx-dynamic-client-terraform-state" # Terraform state bucket to handle state storage and locking
+      gw_a_subnet: subnet-0814bb94bba377c48
+      gw_b_subnet: subnet-006ede43024b14da1
+      bucket: "edgetx-dynamic-client-terraform-state"

@@ -15,3 +15,14 @@ observium_db_pass_old: prologic
 observium_base: /opt/observium
 web_user: apache
 web_group: apache
+
+# Derived paths and S3 keys
+obs_mig_dir: "{{ observium_base }}/migrate/{{ observium_migration_tag }}"
+obs_mark: "{{ observium_base }}/.migration_{{ observium_migration_tag }}.done"
+
+s3_key_prefix: "{{ observium_s3_prefix }}/{{ observium_migration_tag }}"
+s3_key_dump: "{{ s3_key_prefix }}/observium-dump.sql"
+s3_key_rrd: "{{ s3_key_prefix }}/observium-rrd.tar.gz"
+s3_key_cfg: "{{ s3_key_prefix }}/config.php"
+
+s3_uri_base: "s3://{{ observium_s3_bucket }}/{{ s3_key_prefix }}"

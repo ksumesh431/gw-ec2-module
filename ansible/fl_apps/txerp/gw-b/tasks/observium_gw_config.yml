@@ -88,21 +88,11 @@
         state: present
       become: true
 
-    - name: Compute migration paths and S3 keys
-      ansible.builtin.set_fact:
-        _obs_mig_dir: "{{ observium_base }}/migrate/{{ observium_migration_tag }}"
-        _obs_mark: "{{ observium_base }}/.migration_{{ observium_migration_tag }}.done"
-        _s3_key_prefix: "{{ observium_s3_prefix }}/{{ observium_migration_tag }}"
-        _s3_key_dump: "{{ _s3_key_prefix }}/observium-dump.sql"
-        _s3_key_rrd: "{{ _s3_key_prefix }}/observium-rrd.tar.gz"
-        _s3_key_cfg: "{{ _s3_key_prefix }}/config.php"
-        _s3_uri_base: "s3://{{ observium_s3_bucket }}/{{ _s3_key_prefix }}"
-
     - name: Check if dump exists in S3
       ansible.builtin.shell: |
         aws s3api head-object \
           --bucket "{{ observium_s3_bucket }}" \
-          --key "{{ _s3_key_dump }}"
+          --key "{{ s3_key_dump }}"
       register: _s3_dump_head
       changed_when: false
       failed_when: false
@@ -111,7 +101,7 @@
       ansible.builtin.shell: |
         aws s3api head-object \
           --bucket "{{ observium_s3_bucket }}" \
-          --key "{{ _s3_key_rrd }}"
+          --key "{{ s3_key_rrd }}"
       register: _s3_rrd_head
       changed_when: false
       failed_when: false
@@ -123,11 +113,11 @@
 
     - name: Build old-instance migration script (SSM)
       ansible.builtin.set_fact:
-        _old_migration_script: |
+        old_migration_script: |
           set -Eeuo pipefail
           BASE="{{ observium_base }}"
           OUT="$BASE/migrate/{{ observium_migration_tag }}"
-          S3="s3://{{ observium_s3_bucket }}/{{ _s3_key_prefix }}"
+          S3="{{ s3_uri_base }}"
           mkdir -p "$OUT"
 
           echo "[OLD] Preparing dump to $OUT and upload to $S3"
@@ -207,7 +197,7 @@
         aws ssm send-command \
           --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
           --document-name "AWS-RunShellScript" \
-          --parameters '{{ {"commands": [ _old_migration_script ] } | to_json }}' \
+          --parameters '{{ {"commands": [ old_migration_script ] } | to_json }}' \
           --region "{{ aws_region }}" \
           --output text \
           --query 'Command.CommandId'
@@ -232,103 +222,103 @@
 
     - name: Ensure local migration directory exists on new instance
       ansible.builtin.file:
-        path: "{{ _obs_mig_dir }}"
+        path: "{{ obs_mig_dir }}"
         state: directory
         mode: "0755"
       become: true
 
     - name: Download DB dump from S3 if not present
       ansible.builtin.shell: |
-        aws s3 cp "{{ _s3_uri_base }}/observium-dump.sql" \
-          "{{ _obs_mig_dir }}/"
+        aws s3 cp "{{ s3_uri_base }}/observium-dump.sql" \
+          "{{ obs_mig_dir }}/"
       args:
-        creates: "{{ _obs_mig_dir }}/observium-dump.sql"
+        creates: "{{ obs_mig_dir }}/observium-dump.sql"
       changed_when: true
       become: true
 
     - name: Download RRD archive from S3 if not present
       ansible.builtin.shell: |
-        aws s3 cp "{{ _s3_uri_base }}/observium-rrd.tar.gz" \
-          "{{ _obs_mig_dir }}/"
+        aws s3 cp "{{ s3_uri_base }}/observium-rrd.tar.gz" \
+          "{{ obs_mig_dir }}/"
       args:
-        creates: "{{ _obs_mig_dir }}/observium-rrd.tar.gz"
+        creates: "{{ obs_mig_dir }}/observium-rrd.tar.gz"
       changed_when: true
       become: true
 
     - name: Download config.php snapshot if present (best effort)
       ansible.builtin.shell: |
-        aws s3 cp "{{ _s3_uri_base }}/config.php" \
-          "{{ _obs_mig_dir }}/" || true
+        aws s3 cp "{{ s3_uri_base }}/config.php" \
+          "{{ obs_mig_dir }}/" || true
       changed_when: false
       become: true
 
     - name: Check if migration already applied
       ansible.builtin.stat:
-        path: "{{ _obs_mark }}"
+        path: "{{ obs_mark }}"
       register: _mig_mark
 
-- name: Import DB and restore RRDs (one-time per tag)
-  block:
-    - name: Import Observium database from dump
-      ansible.builtin.shell: |
-        set -Eeuo pipefail
-        BASE="{{ observium_base }}"
-        OUT="{{ _obs_mig_dir }}"
-        DB="{{ observium_db_name_old }}"
-        # Try building MYSQL command from config.php; fallback to socket/root
-        MYSQL=(mysql)
-        if ! "${MYSQL[@]}" -e 'SELECT 1' >/dev/null 2>&1; then
-          if command -v php >/dev/null 2>&1 && \
-              [ -f "$BASE/config.php" ]; then
-            DBU=$(php -r 'include "/opt/observium/config.php";
-              echo $config["db_user"];')
-            DBP=$(php -r 'include "/opt/observium/config.php";
-              echo $config["db_pass"];')
-            MYSQL=(mysql -u "$DBU" -p"$DBP")
-          fi
-        fi
+    - name: Import DB and restore RRDs (one-time per tag)
+      block:
+        - name: Import Observium database from dump
+          ansible.builtin.shell: |
+            set -Eeuo pipefail
+            BASE="{{ observium_base }}"
+            OUT="{{ obs_mig_dir }}"
+            DB="{{ observium_db_name_old }}"
+            # Try building MYSQL command from config.php; fallback to socket/root
+            MYSQL=(mysql)
+            if ! "${MYSQL[@]}" -e 'SELECT 1' >/dev/null 2>&1; then
+              if command -v php >/dev/null 2>&1 && \
+                 [ -f "$BASE/config.php" ]; then
+                DBU=$(php -r 'include "/opt/observium/config.php";
+                  echo $config["db_user"];')
+                DBP=$(php -r 'include "/opt/observium/config.php";
+                  echo $config["db_pass"];')
+                MYSQL=(mysql -u "$DBU" -p"$DBP")
+              fi
+            fi
 
-        # Ensure database exists
-        if ! "${MYSQL[@]}" -e "USE ${DB};" >/dev/null 2>&1; then
-          "${MYSQL[@]}" -e "CREATE DATABASE IF NOT EXISTS ${DB}
-            CHARACTER SET utf8 COLLATE utf8_general_ci;"
-        fi
+            # Ensure database exists
+            if ! "${MYSQL[@]}" -e "USE ${DB};" >/dev/null 2>&1; then
+              "${MYSQL[@]}" -e "CREATE DATABASE IF NOT EXISTS ${DB}
+                CHARACTER SET utf8 COLLATE utf8_general_ci;"
+            fi
 
-        # Drop all tables idempotently
-        "${MYSQL[@]}" -N -e "
-          SELECT CONCAT('DROP TABLE IF EXISTS \`', table_name, '\`;')
-          FROM information_schema.tables
-          WHERE table_schema='${DB}';
-        " | "${MYSQL[@]}" "${DB}" || true
+            # Drop all tables idempotently
+            "${MYSQL[@]}" -N -e "
+              SELECT CONCAT('DROP TABLE IF EXISTS \`', table_name, '\`;')
+              FROM information_schema.tables
+              WHERE table_schema='${DB}';
+            " | "${MYSQL[@]}" "${DB}" || true
 
-        # Import dump
-        "${MYSQL[@]}" "${DB}" < "${OUT}/observium-dump.sql"
-      args:
-        executable: /bin/bash
-      become: true
+            # Import dump
+            "${MYSQL[@]}" "${DB}" < "${OUT}/observium-dump.sql"
+          args:
+            executable: /bin/bash
+          become: true
 
-    - name: Restore RRD directory
-      ansible.builtin.shell: |
-        set -Eeuo pipefail
-        BASE="{{ observium_base }}"
-        OUT="{{ _obs_mig_dir }}"
-        TAG="{{ observium_migration_tag }}"
+        - name: Restore RRD directory
+          ansible.builtin.shell: |
+            set -Eeuo pipefail
+            BASE="{{ observium_base }}"
+            OUT="{{ obs_mig_dir }}"
+            TAG="{{ observium_migration_tag }}"
 
-        if [ -d "$BASE/rrd" ] && [ ! -d "$BASE/rrd.bak.$TAG" ]; then
-          mv "$BASE/rrd" "$BASE/rrd.bak.$TAG"
-        fi
+            if [ -d "$BASE/rrd" ] && [ ! -d "$BASE/rrd.bak.$TAG" ]; then
+              mv "$BASE/rrd" "$BASE/rrd.bak.$TAG"
+            fi
 
-        tar -C "$BASE" -zxf "${OUT}/observium-rrd.tar.gz"
+            tar -C "$BASE" -zxf "${OUT}/observium-rrd.tar.gz"
 
-        chown -R "{{ web_user }}:{{ web_group }}" "$BASE/rrd" || true
-      args:
-        executable: /bin/bash
-      become: true
+            chown -R "{{ web_user }}:{{ web_group }}" "$BASE/rrd" || true
+          args:
+            executable: /bin/bash
+          become: true
 
-    - name: Write migration done marker
-      ansible.builtin.file:
-        path: "{{ _obs_mark }}"
-        state: touch
-        mode: "0644"
-      become: true
-  when: not _mig_mark.stat.exists
+        - name: Write migration done marker
+          ansible.builtin.file:
+            path: "{{ obs_mark }}"
+            state: touch
+            mode: "0644"
+          become: true
+      when: not _mig_mark.stat.exists

@@ -64,3 +64,94 @@
         job: "/usr/local/bin/ObserviumHeartbeat.sh"
         minute: "*/5"
       when: obs_file_output.stdout != ""
+
+- name: Observium migration block
+  block:
+    - name: Run DB dump on old server via SSM
+      ansible.builtin.shell: |
+        aws ssm send-command \
+          --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+          --document-name "AWS-RunShellScript" \
+          --comment "Observium DB Dump" \
+          --parameters 'commands=["mysqldump -u observium -pprologic --databases observium --no-tablespaces --add-drop-table --extended-insert > /opt/observium/observium-dump.sql"]' \
+          --region "{{ aws_region }}" \
+          --query "Command.CommandId" \
+          --output text
+      register: db_dump_cmd
+      changed_when: false
+
+    - name: Archive RRDs on old server
+      ansible.builtin.shell: |
+        aws ssm send-command \
+          --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+          --document-name "AWS-RunShellScript" \
+          --comment "Archive Observium RRDs" \
+          --parameters 'commands=["cd /opt/observium && tar -zcf observium-rrd.tar.gz rrd"]' \
+          --region "{{ aws_region }}" \
+          --query "Command.CommandId" \
+          --output text
+      register: rrd_archive_cmd
+      changed_when: false
+
+    - name: Copy DB dump via SSM
+      ansible.builtin.fetch:
+        src: /opt/observium/observium-dump.sql
+        dest: /tmp/observium-dump.sql
+        flat: true
+      delegate_to: "{{ final_vars.old_gw_b_host }}"
+
+    - name: Copy RRD archive via SSM
+      ansible.builtin.fetch:
+        src: /opt/observium/observium-rrd.tar.gz
+        dest: /tmp/observium-rrd.tar.gz
+        flat: true
+      delegate_to: "{{ final_vars.old_gw_b_host }}"
+
+    - name: Push DB dump to new server
+      ansible.builtin.copy:
+        src: /tmp/observium-dump.sql
+        dest: /opt/observium/observium-dump.sql
+        owner: observium
+        group: apache
+        mode: "0644"
+
+    - name: Push RRD archive to new server
+      ansible.builtin.copy:
+        src: /tmp/observium-rrd.tar.gz
+        dest: /opt/observium/observium-rrd.tar.gz
+        owner: observium
+        group: apache
+        mode: "0644"
+
+    - name: Restore DB on new server
+      ansible.builtin.shell: |
+        mysql -u observium -pprologic -e "USE observium; SHOW TABLES;" | grep Devices || \
+        mysql -u observium -pprologic observium < /opt/observium/observium-dump.sql
+      args:
+        creates: /opt/observium/.db_restored # marker file
+      register: db_restore
+      changed_when: db_restore.rc == 0
+
+    - name: Create DB restore marker
+      ansible.builtin.file:
+        path: /opt/observium/.db_restored
+        state: touch
+      when: db_restore is succeeded
+
+    - name: Extract RRDs if not already extracted
+      ansible.builtin.unarchive:
+        src: /opt/observium/observium-rrd.tar.gz
+        dest: /opt/observium/
+        owner: observium
+        group: apache
+        remote_src: true
+        creates: /opt/observium/rrd
+      register: rrd_restore
+
+    - name: Fix permissions on RRDs
+      ansible.builtin.file:
+        path: /opt/observium/rrd
+        owner: observium
+        group: apache
+        recurse: true
+      when: rrd_restore.changed

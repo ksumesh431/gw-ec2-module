@@ -420,32 +420,90 @@
           delay: 5
           until: sql_chunks_list.rc == 0
 
-        - name: Transfer and reassemble MySQL dump chunks
+        - name: Transfer MySQL dump chunks one by one
           ansible.builtin.shell: |
             cd /opt/observium
             rm -f observium-dump.sql.gz
+
+            # Process each chunk individually
             {% for chunk in sql_chunks_list.stdout.split('\n') | select('match', '.*sql-chunk-.*') | list %}
-            echo "Transferring {{ chunk }}..."
-            CMD_ID=$(aws ssm send-command --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" --document-name "AWS-RunShellScript" --parameters 'commands=["base64 -w 0 /opt/observium/{{ chunk }}"]' --region "{{ aws_region }}" --output text --query 'Command.CommandId')
-            sleep 3
+            echo "Processing chunk: {{ chunk }}"
+
+            # Send command to get base64 of chunk
+            CMD_ID=$(aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["if [ -f /opt/observium/{{ chunk }} ]; then base64 -w 0 /opt/observium/{{ chunk }}; else echo CHUNK_NOT_FOUND; fi"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId')
+
+            echo "Command ID for {{ chunk }}: $CMD_ID"
+            sleep 5
+
+            # Retry getting the content
             CONTENT=""
-            for i in {1..10}; do
-              CONTENT=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "{{ final_vars.old_gw_b_instnace_id }}" --region "{{ aws_region }}" --output text --query 'StandardOutputContent' 2>/dev/null) 
-              if [ -n "$CONTENT" ]; then break; fi
-              sleep 2
+            for attempt in {1..15}; do
+              echo "Attempt $attempt for {{ chunk }}..."
+              CONTENT=$(aws ssm get-command-invocation \
+                --command-id "$CMD_ID" \
+                --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
+                --region "{{ aws_region }}" \
+                --output text \
+                --query 'StandardOutputContent' 2>/dev/null || echo "")
+              
+              if [ "$CONTENT" = "CHUNK_NOT_FOUND" ]; then
+                echo "ERROR: {{ chunk }} not found on source server"
+                exit 1
+              elif [ -n "$CONTENT" ] && [ "$CONTENT" != "" ]; then
+                echo "Got content for {{ chunk }}: ${#CONTENT} characters"
+                break
+              fi
+              sleep 3
             done
-            if [ -n "$CONTENT" ]; then
-              echo "$CONTENT" | base64 -d >> observium-dump.sql.gz
-              echo "{{ chunk }} transferred successfully"
-            else
-              echo "Failed to transfer {{ chunk }}"
+
+            if [ -z "$CONTENT" ] || [ "$CONTENT" = "" ]; then
+              echo "ERROR: Failed to get content for {{ chunk }} after 15 attempts"
               exit 1
             fi
+
+            # Decode and append to file
+            if echo "$CONTENT" | base64 -d >> observium-dump.sql.gz 2>/dev/null; then
+              echo "✓ {{ chunk }} decoded and appended successfully"
+            else
+              echo "ERROR: Failed to decode {{ chunk }}"
+              echo "Content preview: ${CONTENT:0:100}..."
+              exit 1
+            fi
+
             {% endfor %}
-            # Decompress the dump
-            gunzip observium-dump.sql.gz
-            ls -lh observium-dump.sql
+
+            # Verify and decompress
+            echo "Verifying assembled file..."
+            ls -lh observium-dump.sql.gz
+
+            if [ ! -f observium-dump.sql.gz ]; then
+              echo "ERROR: No assembled file found"
+              exit 1
+            fi
+
+            if gzip -t observium-dump.sql.gz 2>/dev/null; then
+              echo "✓ Gzip file is valid, decompressing..."
+              gunzip observium-dump.sql.gz
+              ls -lh observium-dump.sql
+              echo "✅ MySQL dump transfer completed successfully"
+            else
+              echo "ERROR: Assembled gzip file is corrupted"
+              hexdump -C observium-dump.sql.gz | head -5
+              exit 1
+            fi
           when: sql_chunks_list.stdout != ""
+          register: sql_transfer_result
+
+        - name: Display SQL transfer results
+          ansible.builtin.debug:
+            var: sql_transfer_result.stdout_lines
+          when: sql_transfer_result is defined
 
         - name: Verify MySQL dump was transferred
           ansible.builtin.stat:
@@ -553,7 +611,7 @@
           loop:
             - httpd
             - mariadb
-          ignore_errors: true
+          ignore_errors: yes
 
         - name: Start MariaDB service
           ansible.builtin.systemd:
@@ -576,7 +634,7 @@
           ansible.builtin.shell: |
             cd /opt/observium
             mv rrd rrd.new-install.bak || true
-          ignore_errors: true
+          ignore_errors: yes
 
         - name: Extract RRD archive
           ansible.builtin.shell: |
@@ -671,7 +729,7 @@
       loop:
         - mariadb
         - httpd
-      ignore_errors: true
+      ignore_errors: yes
 
     - name: Fail the playbook
       ansible.builtin.fail:

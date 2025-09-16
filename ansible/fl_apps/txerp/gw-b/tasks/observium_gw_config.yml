@@ -383,7 +383,7 @@
             aws ssm send-command \
               --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
               --document-name "AWS-RunShellScript" \
-              --parameters 'commands=["cd /opt/observium && mysqldump -u observium -pprologic --databases observium --no-tablespaces --add-drop-table --extended-insert > observium-dump.sql && ls -lh observium-dump.sql"]' \
+              --parameters 'commands=["cd /opt/observium && mysqldump -u observium -pprologic --databases observium --no-tablespaces --add-drop-table --extended-insert > observium-dump.sql && gzip observium-dump.sql && ls -lh observium-dump.sql.gz"]' \
               --region "{{ aws_region }}" \
               --output text \
               --query 'Command.CommandId'
@@ -396,123 +396,68 @@
               --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
               --region "{{ aws_region }}"
 
-        - name: Create RRD archive on old server with better error handling
+        - name: Split MySQL dump for transfer
           ansible.builtin.shell: |
             aws ssm send-command \
               --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
               --document-name "AWS-RunShellScript" \
-              --parameters 'commands=["cd /opt/observium && echo \"Starting RRD archive creation...\" && tar --exclude=\"*.tmp\" -czf observium-rrd.tar.gz rrd/ && echo \"Archive created successfully\" && ls -lh observium-rrd.tar.gz"]' \
-              --region "{{ aws_region }}" \
-              --timeout-seconds 1800 \
-              --output text \
-              --query 'Command.CommandId'
-          register: rrd_archive_cmd
-
-        - name: Check RRD archive command status
-          ansible.builtin.shell: |
-            aws ssm get-command-invocation \
-              --command-id "{{ rrd_archive_cmd.stdout }}" \
-              --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
-              --region "{{ aws_region }}" \
-              --output json
-          register: rrd_status_check
-          retries: 30
-          delay: 10
-          until: rrd_status_check.stdout | from_json | json_query('Status') != 'InProgress'
-
-        - name: Display RRD archive results
-          ansible.builtin.debug:
-            msg: |
-              RRD Archive Status: {{ (rrd_status_check.stdout | from_json).Status }}
-              Output: {{ (rrd_status_check.stdout | from_json).StandardOutputContent }}
-              Error: {{ (rrd_status_check.stdout | from_json).StandardErrorContent }}
-
-        - name: Fail if RRD archive creation failed
-          ansible.builtin.fail:
-            msg: "RRD archive creation failed: {{ (rrd_status_check.stdout | from_json).StandardErrorContent }}"
-          when: (rrd_status_check.stdout | from_json).Status == 'Failed'
-
-        - name: Create smaller RRD archives if main archive failed
-          block:
-            - name: Get list of device directories in RRD
-              ansible.builtin.shell: |
-                aws ssm send-command \
-                  --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
-                  --document-name "AWS-RunShellScript" \
-                  --parameters 'commands=["find /opt/observium/rrd -maxdepth 1 -type d | head -20"]' \
-                  --region "{{ aws_region }}" \
-                  --output text \
-                  --query 'Command.CommandId'
-              register: list_rrd_dirs_cmd
-
-            - name: Get RRD directory list
-              ansible.builtin.shell: |
-                aws ssm get-command-invocation \
-                  --command-id "{{ list_rrd_dirs_cmd.stdout }}" \
-                  --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
-                  --region "{{ aws_region }}" \
-                  --output text \
-                  --query 'StandardOutputContent'
-              register: rrd_dirs_list
-              retries: 10
-              delay: 2
-              until: rrd_dirs_list.rc == 0
-
-            - name: Create multiple smaller RRD archives
-              ansible.builtin.shell: |
-                aws ssm send-command \
-                  --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
-                  --document-name "AWS-RunShellScript" \
-                  --parameters 'commands=["cd /opt/observium && tar --exclude=\"*.tmp\" -czf observium-rrd-part1.tar.gz rrd/*.rrd && tar --exclude=\"*.tmp\" -czf observium-rrd-part2.tar.gz rrd/*/"]' \
-                  --region "{{ aws_region }}" \
-                  --timeout-seconds 1800 \
-                  --output text \
-                  --query 'Command.CommandId'
-              register: rrd_parts_cmd
-
-            - name: Wait for RRD parts creation
-              ansible.builtin.shell: |
-                aws ssm get-command-invocation \
-                  --command-id "{{ rrd_parts_cmd.stdout }}" \
-                  --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
-                  --region "{{ aws_region }}" \
-                  --output json
-              register: rrd_parts_status
-              retries: 30
-              delay: 10
-              until: rrd_parts_status.stdout | from_json | json_query('Status') != 'InProgress'
-
-          when: (rrd_status_check.stdout | from_json).Status == 'Failed'
-
-        - name: Get MySQL dump from old server
-          ansible.builtin.shell: |
-            aws ssm send-command \
-              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
-              --document-name "AWS-RunShellScript" \
-              --parameters 'commands=["base64 -w 0 /opt/observium/observium-dump.sql"]' \
+              --parameters 'commands=["cd /opt/observium && split -b 45M observium-dump.sql.gz sql-chunk- && ls sql-chunk-*"]' \
               --region "{{ aws_region }}" \
               --output text \
               --query 'Command.CommandId'
-          register: get_dump_cmd
+          register: split_sql_cmd
 
-        - name: Wait and fetch MySQL dump content
+        - name: Get SQL chunks list
           ansible.builtin.shell: |
             aws ssm get-command-invocation \
-              --command-id "{{ get_dump_cmd.stdout }}" \
+              --command-id "{{ split_sql_cmd.stdout }}" \
               --instance-id "{{ final_vars.old_gw_b_instnace_id }}" \
               --region "{{ aws_region }}" \
               --output text \
               --query 'StandardOutputContent'
-          register: mysql_dump_content
+          register: sql_chunks_list
           retries: 15
           delay: 5
-          until: mysql_dump_content.rc == 0
+          until: sql_chunks_list.rc == 0
 
-        - name: Save MySQL dump to new server
+        - name: Transfer and reassemble MySQL dump chunks
           ansible.builtin.shell: |
-            echo "{{ mysql_dump_content.stdout }}" | base64 -d > /opt/observium/observium-dump.sql
-          when: mysql_dump_content.stdout != ""
+            cd /opt/observium
+            rm -f observium-dump.sql.gz
+            {% for chunk in sql_chunks_list.stdout.split('\n') | select('match', '.*sql-chunk-.*') | list %}
+            echo "Transferring {{ chunk }}..."
+            CMD_ID=$(aws ssm send-command --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" --document-name "AWS-RunShellScript" --parameters 'commands=["base64 -w 0 /opt/observium/{{ chunk }}"]' --region "{{ aws_region }}" --output text --query 'Command.CommandId')
+            sleep 3
+            CONTENT=""
+            for i in {1..10}; do
+              CONTENT=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "{{ final_vars.old_gw_b_instnace_id }}" --region "{{ aws_region }}" --output text --query 'StandardOutputContent' 2>/dev/null) 
+              if [ -n "$CONTENT" ]; then break; fi
+              sleep 2
+            done
+            if [ -n "$CONTENT" ]; then
+              echo "$CONTENT" | base64 -d >> observium-dump.sql.gz
+              echo "{{ chunk }} transferred successfully"
+            else
+              echo "Failed to transfer {{ chunk }}"
+              exit 1
+            fi
+            {% endfor %}
+            # Decompress the dump
+            gunzip observium-dump.sql.gz
+            ls -lh observium-dump.sql
+          when: sql_chunks_list.stdout != ""
 
+        - name: Verify MySQL dump was transferred
+          ansible.builtin.stat:
+            path: /opt/observium/observium-dump.sql
+          register: sql_dump_check
+
+        - name: Fail if MySQL dump transfer failed
+          ansible.builtin.fail:
+            msg: "MySQL dump transfer failed - dump file not found or empty"
+          when: not sql_dump_check.stat.exists or sql_dump_check.stat.size < 1000
+
+        # Continue with RRD transfer (keep existing RRD transfer code)
         - name: Get single RRD archive (if successful)
           block:
             - name: Transfer single RRD archive
@@ -544,10 +489,22 @@
                 cd /opt/observium
                 rm -f observium-rrd.tar.gz
                 {% for chunk in rrd_chunks_list.stdout.split('\n') | select('match', '.*rrd-chunk-.*') | list %}
+                echo "Transferring {{ chunk }}..."
                 CMD_ID=$(aws ssm send-command --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" --document-name "AWS-RunShellScript" --parameters 'commands=["base64 -w 0 {{ chunk }}"]' --region "{{ aws_region }}" --output text --query 'Command.CommandId')
-                sleep 2
-                CONTENT=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "{{ final_vars.old_gw_b_instnace_id }}" --region "{{ aws_region }}" --output text --query 'StandardOutputContent')
-                echo "$CONTENT" | base64 -d >> observium-rrd.tar.gz
+                sleep 3
+                CONTENT=""
+                for i in {1..10}; do
+                  CONTENT=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "{{ final_vars.old_gw_b_instnace_id }}" --region "{{ aws_region }}" --output text --query 'StandardOutputContent' 2>/dev/null)
+                  if [ -n "$CONTENT" ]; then break; fi
+                  sleep 2
+                done
+                if [ -n "$CONTENT" ]; then
+                  echo "$CONTENT" | base64 -d >> observium-rrd.tar.gz
+                  echo "{{ chunk }} transferred successfully"
+                else
+                  echo "Failed to transfer {{ chunk }}"
+                  exit 1
+                fi
                 {% endfor %}
               when: rrd_chunks_list.stdout != ""
 
@@ -581,13 +538,14 @@
           ansible.builtin.copy:
             src: /opt/observium/config.php
             dest: /opt/observium/config.php.new-install.bak
-            remote_src: true
+            remote_src: yes
 
         - name: Save old config.php for reference
           ansible.builtin.shell: |
             echo "{{ config_content.stdout }}" | base64 -d > /opt/observium/config.php.old
           when: config_content.stdout != ""
 
+        # Database and service setup
         - name: Stop current Observium services
           ansible.builtin.systemd:
             name: "{{ item }}"
@@ -595,7 +553,7 @@
           loop:
             - httpd
             - mariadb
-          ignore_errors: yes
+          ignore_errors: true
 
         - name: Start MariaDB service
           ansible.builtin.systemd:
@@ -618,13 +576,12 @@
           ansible.builtin.shell: |
             cd /opt/observium
             mv rrd rrd.new-install.bak || true
-          ignore_errors: yes
+          ignore_errors: true
 
         - name: Extract RRD archive
           ansible.builtin.shell: |
             cd /opt/observium
             tar zxf observium-rrd.tar.gz
-          when: (rrd_status_check.stdout | from_json).Status == 'Success'
 
         - name: Set proper ownership for Observium files
           ansible.builtin.file:
@@ -642,12 +599,67 @@
             state: started
             enabled: yes
 
+        - name: Restore Observium cron jobs
+          ansible.builtin.cron:
+            name: "{{ item.name }}"
+            job: "{{ item.job }}"
+            minute: "{{ item.minute | default('*') }}"
+            hour: "{{ item.hour | default('*') }}"
+          loop:
+            - name: "Observium Poller"
+              job: "/opt/observium/poller.php -h all >> /dev/null 2>&1"
+              minute: "*/5"
+            - name: "Observium Discovery"
+              job: "/opt/observium/discovery.php -h all >> /dev/null 2>&1"
+              minute: "33"
+              hour: "*/6"
+            - name: "Observium Housekeeping"
+              job: "/opt/observium/housekeeping.php -ysel >> /dev/null 2>&1"
+              minute: "47"
+              hour: "2"
+
         - name: Mark migration as completed
           ansible.builtin.file:
             path: /opt/observium/.migration_completed
             state: touch
             owner: apache
             group: apache
+
+        - name: Cleanup migration files
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - /opt/observium/observium-dump.sql
+            - /opt/observium/observium-rrd.tar.gz
+
+        - name: Cleanup old server files
+          ansible.builtin.shell: |
+            aws ssm send-command \
+              --instance-ids "{{ final_vars.old_gw_b_instnace_id }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["rm -f /opt/observium/observium-dump.sql* /opt/observium/observium-rrd.tar.gz /opt/observium/rrd-chunk-* /opt/observium/sql-chunk-*"]' \
+              --region "{{ aws_region }}" \
+              --output text \
+              --query 'Command.CommandId'
+          register: cleanup_cmd
+
+        - name: Display migration completion message
+          ansible.builtin.debug:
+            msg: |
+              ✅ Observium migration completed successfully!
+
+              Next steps:
+              1. Check the web UI: http://your-new-server/observium/
+              2. Verify devices are showing up
+              3. Check that graphs are rendering
+              4. Test alert functionality
+              5. Update any external integrations to point to new server
+
+              Config files:
+              - New config: /opt/observium/config.php
+              - Old config reference: /opt/observium/config.php.old
+              - Backup of new install config: /opt/observium/config.php.new-install.bak
 
       when: not migration_status.stat.exists
 
@@ -659,7 +671,7 @@
       loop:
         - mariadb
         - httpd
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Fail the playbook
       ansible.builtin.fail:

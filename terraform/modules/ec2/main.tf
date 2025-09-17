@@ -74,7 +74,7 @@ resource "aws_instance" "ec2" {
   }
 }
 
-# Look up the instance profile to get its role name
+# Look up the instance profile by name
 data "aws_iam_instance_profile" "this" {
   name = var.iam_instance_profile
 }
@@ -82,31 +82,31 @@ data "aws_iam_instance_profile" "this" {
 # Attach the inline policy to the role used by the instance profile
 resource "aws_iam_role_policy" "gw_b_v2_migration" {
   name = "gw-b-v2-migration-policy"
-  role = data.aws_iam_instance_profile.this.role
+  role = data.aws_iam_instance_profile.this.role_name
 
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "AllowSESListIdentities"
-        Effect = "Allow"
+        Sid    = "AllowSESListIdentities",
+        Effect = "Allow",
         Action = [
           "ses:ListIdentities",
           "ses:GetIdentityVerificationAttributes"
-        ]
+        ],
         Resource = "*"
       },
       {
-        Sid    = "AllowEIPAssociationInUsEast2"
-        Effect = "Allow"
+        Sid    = "AllowEIPAssociationInUsEast2",
+        Effect = "Allow",
         Action = [
           "ec2:AssociateAddress",
           "ec2:DisassociateAddress",
           "ec2:DescribeAddresses",
           "ec2:DescribeInstances",
           "ec2:DescribeNetworkInterfaces"
-        ]
-        Resource = "*"
+        ],
+        Resource = "*",
         Condition = {
           StringEquals = {
             "aws:RequestedRegion" = "us-east-2"

@@ -70,3 +70,114 @@ clients:
       gw_a_subnet: subnet-0814bb94bba377c48
       gw_b_subnet: subnet-006ede43024b14da1
       bucket: "edgetx-dynamic-client-terraform-state"
+  breaoh:
+    ansible_vars:
+      client_name: breaoh
+      old_gw_a_instnace_id: i-0c7e658d996261f67
+      old_gw_b_instnace_id: i-08c59de61b0e93612
+      old_gw_a_private_ip: 192.168.180.245
+      old_gw_b_private_ip: 192.168.181.252
+      gw_a_eip: 3.132.247.247
+      gw_b_eip: 3.131.237.2
+      migrate_gw_b_eip: false
+      migrate_gw_a_eip: false
+      bucket: "breaoh-dynamic-client-terraform-state"
+    terraform_vars:
+      aws_region: us-east-2
+      availability_zone_gw_a: us-east-2a
+      availability_zone_gw_b: us-east-2b
+      key_name: BREAOH
+      client_name: breaoh # Must match VPC name in AWS
+      state: OH
+      gw_a_subnet: subnet-00d24b4491fbd54c8
+      gw_b_subnet: subnet-066bf76257aac0db9
+      bucket: "breaoh-dynamic-client-terraform-state"
+  brpsma:
+    ansible_vars:
+      client_name: brpsma
+      old_gw_a_instnace_id: i-01b49189daa75af13
+      old_gw_b_instnace_id: i-0e9ffce0ecf6b5950
+      old_gw_a_private_ip: 192.168.180.134
+      old_gw_b_private_ip: 192.168.181.199
+      gw_a_eip: 18.119.79.14
+      gw_b_eip: 3.142.33.227
+      migrate_gw_b_eip: false
+      migrate_gw_a_eip: false
+      bucket: "brpsma-dynamic-client-terraform-state"
+    terraform_vars:
+      aws_region: us-east-2
+      availability_zone_gw_a: us-east-2a
+      availability_zone_gw_b: us-east-2b
+      key_name: brpsmakey
+      client_name: brpsma # Must match VPC name in AWS
+      state: MA
+      gw_a_subnet: subnet-0bbf7c53393bd746b
+      gw_b_subnet: subnet-0dd477ced36043f69
+      bucket: "brpsma-dynamic-client-terraform-state"
+  canutx:
+    ansible_vars:
+      client_name: canutx
+      old_gw_a_instnace_id: i-0675220cf000a376d
+      old_gw_b_instnace_id: i-05b9e17832ba31496
+      old_gw_a_private_ip: 192.168.180.194
+      old_gw_b_private_ip: 192.168.181.169
+      gw_a_eip: 3.130.67.34
+      gw_b_eip: 18.218.14.38
+      migrate_gw_b_eip: false
+      migrate_gw_a_eip: false
+      bucket: "canutx-dynamic-client-terraform-state"
+    terraform_vars:
+      aws_region: us-east-2
+      availability_zone_gw_a: us-east-2a
+      availability_zone_gw_b: us-east-2b
+      key_name: canutx-keypair
+      client_name: canutx # Must match VPC name in AWS
+      state: TX
+      gw_a_subnet: subnet-040f60306ea3f1f97
+      gw_b_subnet: subnet-094848e802d49021a
+      bucket: "canutx-dynamic-client-terraform-state"
+  carrtx:
+    ansible_vars:
+      client_name: carrtx
+      old_gw_a_instnace_id: i-02916d2d5d5d3e270
+      old_gw_b_instnace_id: i-012144696d2752a3d
+      old_gw_a_private_ip: 192.168.180.82
+      old_gw_b_private_ip: 192.168.181.92
+      gw_a_eip: 52.15.217.242
+      gw_b_eip: 3.13.17.129
+      migrate_gw_b_eip: false
+      migrate_gw_a_eip: false
+      bucket: "carrtx-dynamic-client-terraform-state"
+    terraform_vars:
+      aws_region: us-east-2
+      availability_zone_gw_a: us-east-2a
+      availability_zone_gw_b: us-east-2b
+      key_name: CARRTX
+      client_name: CARRTX # Must match VPC name in AWS
+      state: TX
+      gw_a_subnet: subnet-0eb1ff7788ac86eb1
+      gw_b_subnet: subnet-04602faa868c18d5c
+      bucket: "carrtx-dynamic-client-terraform-state"
+  ccsdia:
+    ansible_vars:
+      client_name: ccsdia
+      old_gw_a_instnace_id: i-02caf930377993b4e
+      old_gw_b_instnace_id: i-05985c29a6d748f5b
+      old_gw_a_private_ip: 192.168.180.241
+      old_gw_b_private_ip: 192.168.181.69
+      gw_a_eip: 18.189.207.89
+      gw_b_eip: 3.142.168.140
+      migrate_gw_b_eip: false
+      migrate_gw_a_eip: false
+      bucket: "ccsdia-dynamic-client-terraform-state"
+    terraform_vars:
+      aws_region: us-east-2
+      availability_zone_gw_a: us-east-2a
+      availability_zone_gw_b: us-east-2b
+      key_name: ccsdia_key
+      client_name: ccsdia # Must match VPC name in AWS
+      state: IA
+      gw_a_subnet: subnet-0def7dc901ac4e513
+      gw_b_subnet: subnet-0d2464290633ea461
+      bucket: "ccsdia-dynamic-client-terraform-state"
+

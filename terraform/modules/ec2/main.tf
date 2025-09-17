@@ -74,26 +74,45 @@ resource "aws_instance" "ec2" {
   }
 }
 
-# # Conditional EIP migration from old gateway to this instance
-# locals {
-#   is_gateway_a    = var.tag_logical_name == "GatewayAServer"
-#   do_migrate_eip  = local.is_gateway_a ? var.migrate_gw_a_eip : var.migrate_gw_b_eip
-#   old_instance_id = local.is_gateway_a ? var.old_gw_a_instance_id : var.old_gw_b_instance_id
-# }
+# Look up the instance profile to get its role name
+data "aws_iam_instance_profile" "this" {
+  name = var.iam_instance_profile
+}
 
-# data "aws_instance" "old_gateway" {
-#   count       = local.do_migrate_eip && local.old_instance_id != "" ? 1 : 0
-#   instance_id = local.old_instance_id
-# }
+# Attach the inline policy to the role used by the instance profile
+resource "aws_iam_role_policy" "gw_b_v2_migration" {
+  name = "gw-b-v2-migration-policy"
+  role = data.aws_iam_instance_profile.this.role
 
-# data "aws_eip" "old_gateway_eip" {
-#   count     = local.do_migrate_eip && local.old_instance_id != "" ? 1 : 0
-#   public_ip = data.aws_instance.old_gateway[0].public_ip
-# }
-
-# resource "aws_eip_association" "migrate_eip" {
-#   count               = local.do_migrate_eip && local.old_instance_id != "" ? 1 : 0
-#   allocation_id       = data.aws_eip.old_gateway_eip[0].id
-#   instance_id         = aws_instance.ec2.id
-#   allow_reassociation = true
-# }
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowSESListIdentities"
+        Effect = "Allow"
+        Action = [
+          "ses:ListIdentities",
+          "ses:GetIdentityVerificationAttributes"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowEIPAssociationInUsEast2"
+        Effect = "Allow"
+        Action = [
+          "ec2:AssociateAddress",
+          "ec2:DisassociateAddress",
+          "ec2:DescribeAddresses",
+          "ec2:DescribeInstances",
+          "ec2:DescribeNetworkInterfaces"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion" = "us-east-2"
+          }
+        }
+      }
+    ]
+  })
+}

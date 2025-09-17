@@ -100,6 +100,16 @@
     creates: /root/ecs/bin/pip
 
 # -------------------------------
+# Step 6.1: Install boto3 inside /root/ecs venv
+# -------------------------------
+- name: Ensure boto3 and requests are installed inside /root/ecs venv
+  ansible.builtin.pip:
+    name:
+      - boto3
+      - requests
+    executable: /root/ecs/bin/pip
+
+# -------------------------------
 # Step 7: Create automation scripts directory
 # -------------------------------
 - name: Create directory /root/automation/scripts
